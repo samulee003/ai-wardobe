@@ -1,66 +1,131 @@
-# 依賴
+# Dependencies
 node_modules/
 client/node_modules/
 
-# 環境變數
+# Production builds
+client/build/
+dist/
+
+# Environment variables
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# 日誌
-logs/
-*.log
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
 
-# 上傳文件
-uploads/
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.webp
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
 
-# 構建輸出
-client/build/
-dist/
-build/
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
 
-# 緩存
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
 .cache/
-.parcel-cache/
+public
 
-# 數據庫
-data/
-*.db
-*.sqlite
+# Storybook build outputs
+.out
+.storybook-out
 
-# IDE
+# Temporary folders
+tmp/
+temp/
+
+# Logs
+logs
+*.log
+
+# Editor directories and files
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
-# 系統文件
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
-# Docker
-.dockerignore
+# Android keystore files
+*.jks
+*.keystore
+android-keystore.*
+keystore.*
 
-# 測試覆蓋率
-coverage/
+# APK build artifacts
+*.apk
+client/android/
 
-# 臨時文件
-tmp/
-temp/
+# Build reports and statistics
+build-report*.json
+apk-test-report.json
+security-report.json
+deployment-checklist.json
+integration-test-report.json
+apk-diagnostics-report.json
+build-statistics.json
+version.json
+current-build.json
 
-# 備份文件
-backups/
-*.backup
+# Backup files
+.build-backups/
 
-# PM2
-.pm2/
+# Uploads directory
+uploads/
+
+# Capacitor
+client/ios/
+client/electron/
