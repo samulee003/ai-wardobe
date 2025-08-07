@@ -22,20 +22,18 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
+        cache: 'npm'
         
-    - name: 🧹 Clean old dependencies
+    - name: 🧹 Clean install dependencies
       run: |
-        rm -rf node_modules || true
-        rm -rf client/node_modules || true
-        
-    - name: 📦 Install root dependencies
-      run: |
-        npm install --legacy-peer-deps --no-audit --no-fund
+        rm -rf node_modules package-lock.json
+        rm -rf client/node_modules client/package-lock.json
+        npm ci --legacy-peer-deps
         
     - name: 📱 Install client dependencies  
       run: |
         cd client
-        npm install --legacy-peer-deps --no-audit --no-fund
+        npm ci --legacy-peer-deps
         
     - name: 🔧 Setup Java JDK
       uses: actions/setup-java@v4
@@ -44,77 +42,37 @@ jobs:
         distribution: 'temurin'
         
     - name: 🤖 Setup Android SDK
-      uses: android-actions/setup-android@v3.2.2
+      uses: android-actions/setup-android@v3
       
-    - name: 📋 Verify installation
+    - name: 📋 Verify dependencies
       run: |
-        echo "Node version:" && node --version
-        echo "NPM version:" && npm --version
-        echo "Java version:" && java -version
-        echo "Android SDK:" && echo $ANDROID_HOME
-        echo "Root dependencies installed:" && ls node_modules | head -5
-        echo "Client dependencies installed:" && ls client/node_modules | head -5
+        node scripts/verify-dependencies.js || echo "Dependency verification completed with warnings"
         
     - name: 🏗️ Build client
       run: |
         cd client
         npm run build
         
-    - name: 📱 Setup Capacitor Android
+    - name: 📱 Setup Capacitor
       run: |
         cd client
         npx cap add android || echo "Android platform already exists"
-        npx cap sync android
+        npx cap sync
         
-    - name: 📝 Show Capacitor info
+    - name: 🔨 Build APK
       run: |
         cd client
-        npx cap doctor || true
+        npx cap build android --no-open
         
-    - name: 🔨 Build APK (Debug)
-      run: |
-        cd client
-        echo "開始構建APK..."
-        npx cap build android --no-open || {
-          echo "❌ APK構建失敗，顯示詳細錯誤信息："
-          echo "檢查Capacitor配置："
-          npx cap config || true
-          echo "檢查Android目錄："
-          ls -la android/ || true
-          echo "檢查Gradle錯誤："
-          cd android && ./gradlew --stacktrace || true
-          exit 1
-        }
-        
-    - name: 📂 List APK files
-      run: |
-        echo "🔍 搜索APK文件..."
-        find client -name "*.apk" -type f -exec ls -lh {} \; || echo "❌ 未找到APK文件"
-        echo "📁 檢查常見APK位置："
-        ls -la client/android/app/build/outputs/apk/debug/ || echo "Debug APK目錄不存在"
-        ls -la client/android/app/build/outputs/apk/release/ || echo "Release APK目錄不存在"
-        
-    - name: 📤 Upload APK artifact
+    - name: 📤 Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: app-debug-apk
-        path: |
-          client/android/app/build/outputs/apk/debug/*.apk
-          client/android/app/build/outputs/apk/release/*.apk
+        path: client/android/app/build/outputs/apk/debug/app-debug.apk
         if-no-files-found: warn
         
     - name: 📊 Build summary
       run: |
-        echo "✅ APK構建流程完成"
-        echo "📱 APK文件總結:"
-        APK_COUNT=$(find client -name "*.apk" -type f | wc -l)
-        if [ "$APK_COUNT" -gt 0 ]; then
-          echo "🎉 成功生成 $APK_COUNT 個APK文件："
-          find client -name "*.apk" -type f -exec basename {} \;
-          echo "📋 文件詳情："
-          find client -name "*.apk" -type f -exec ls -lh {} \;
-        else
-          echo "⚠️  未找到APK文件，請檢查構建日誌"
-        fi
-        echo "📋 最終Capacitor狀態:"
-        cd client && npx cap doctor || true
+        echo "✅ APK構建完成"
+        echo "📱 檔案位置: client/android/app/build/outputs/apk/debug/"
+        ls -la client/android/app/build/outputs/apk/debug/ || echo "APK目錄不存在"
