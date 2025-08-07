@@ -1,0 +1,37 @@
+# 簡化的 API Dockerfile - 避免 uploads 目錄問題
+FROM node:18-alpine
+
+# 設置工作目錄
+WORKDIR /app
+
+# 安裝系統依賴
+RUN apk add --no-cache curl
+
+# 複製 package.json 和 package-lock.json
+COPY package*.json ./
+
+# 安裝依賴
+RUN npm ci --only=production && npm cache clean --force
+
+# 複製源代碼
+COPY server/ ./server/
+
+# 在運行時創建必要的目錄（而不是複製）
+RUN mkdir -p logs uploads && \
+    touch uploads/.gitkeep
+
+# 設置權限
+RUN chown -R node:node /app
+
+# 切換到非 root 用戶
+USER node
+
+# 暴露端口
+EXPOSE 5000
+
+# 健康檢查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:5000/health || exit 1
+
+# 啟動命令
+CMD ["node", "server/index.js"]
