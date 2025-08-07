@@ -52,8 +52,8 @@ RUN npm ci --only=production
 # 創建必要目錄
 RUN mkdir -p uploads logs
 
-# 複製 uploads 目錄結構
-COPY uploads/.gitkeep ./uploads/.gitkeep
+# 在運行時創建 uploads 目錄（避免複製問題）
+RUN touch uploads/.gitkeep
 
 # 生產階段 - API 服務
 FROM node:18-alpine AS api
