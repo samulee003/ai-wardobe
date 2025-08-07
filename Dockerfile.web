@@ -4,32 +4,57 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# 複製 package.json
-COPY client/package*.json ./
+# 安裝系統依賴
+RUN apk add --no-cache git
 
-# 安裝依賴
-RUN npm ci
+# 複製根目錄 package.json（用於依賴檢查腳本）
+COPY package*.json ./
+COPY scripts/ ./scripts/
 
-# 複製源代碼
+# 複製 client package.json
+COPY client/package*.json ./client/
+
+# 安裝根目錄依賴（包含構建工具）
+RUN npm ci --only=production
+
+# 安裝 client 依賴
+WORKDIR /app/client
+RUN npm ci --only=production
+
+# 複製 client 源代碼
 COPY client/ ./
 
 # 構建應用
 RUN npm run build
 
+# 驗證構建結果
+RUN ls -la build/ && echo "Build completed successfully"
+
 # 生產階段
 FROM nginx:alpine
 
+# 安裝健康檢查工具
+RUN apk add --no-cache curl
+
 # 複製構建結果
-COPY --from=builder /app/build /usr/share/nginx/html
+COPY --from=builder /app/client/build /usr/share/nginx/html
 
 # 複製 nginx 配置
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 
 # 複製 Service Worker
-COPY client/public/sw.js /usr/share/nginx/html/sw.js
+COPY --from=builder /app/client/build/sw.js /usr/share/nginx/html/sw.js 2>/dev/null || echo "No service worker found"
+
+# 創建健康檢查腳本
+RUN echo '#!/bin/sh\ncurl -f http://localhost/health || exit 1' > /usr/local/bin/healthcheck.sh && \
+    chmod +x /usr/local/bin/healthcheck.sh
 
 # 暴露端口
 EXPOSE 80
+
+# 健康檢查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD /usr/local/bin/healthcheck.sh
 
 # 啟動 nginx
 CMD ["nginx", "-g", "daemon off;"]

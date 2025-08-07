@@ -15,12 +15,14 @@ COPY package*.json ./
 # 安裝依賴
 RUN npm ci --only=production && npm cache clean --force
 
-# 複製源代碼
-COPY server/ ./server/
-COPY uploads/ ./uploads/
-
 # 創建必要的目錄
 RUN mkdir -p logs uploads
+
+# 複製源代碼
+COPY server/ ./server/
+
+# 複製 uploads 目錄結構（保持 .gitkeep）
+COPY uploads/.gitkeep ./uploads/.gitkeep
 
 # 設置權限
 RUN chown -R node:node /app

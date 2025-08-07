@@ -1,0 +1,92 @@
+{
+  "name": "smart-wardrobe-app",
+  "description": "智能衣櫃管理APP - 專為ADHD用戶設計的AI衣物管理系統",
+  "version": "1.0.0",
+  "services": [
+    {
+      "name": "api",
+      "type": "nodejs",
+      "source": {
+        "type": "git",
+        "branch": "main"
+      },
+      "build": {
+        "buildCommand": "npm run install:all && npm run verify:deps",
+        "startCommand": "node server/index.js"
+      },
+      "environment": {
+        "NODE_ENV": "production",
+        "PORT": "5000",
+        "MONGODB_URI": "${mongodb.connectionString}",
+        "JWT_SECRET": "${JWT_SECRET}",
+        "GEMINI_API_KEY": "${GEMINI_API_KEY}",
+        "PREFERRED_AI_SERVICE": "gemini"
+      },
+      "port": 5000,
+      "healthCheck": {
+        "path": "/health",
+        "port": 5000,
+        "timeout": 30
+      },
+      "resources": {
+        "memory": "512Mi",
+        "cpu": "0.5"
+      }
+    },
+    {
+      "name": "web",
+      "type": "static",
+      "source": {
+        "type": "git",
+        "directory": "client",
+        "branch": "main"
+      },
+      "build": {
+        "buildCommand": "npm install && npm run build",
+        "outputDirectory": "build",
+        "installCommand": "npm install"
+      },
+      "environment": {
+        "REACT_APP_API_URL": "${api.url}",
+        "REACT_APP_VERSION": "1.0.0",
+        "GENERATE_SOURCEMAP": "false"
+      },
+      "routes": [
+        {
+          "src": "/(.*)",
+          "dest": "/index.html"
+        }
+      ]
+    }
+  ],
+  "addons": [
+    {
+      "name": "mongodb",
+      "type": "mongodb",
+      "version": "6.0",
+      "environment": {
+        "MONGO_INITDB_ROOT_USERNAME": "admin",
+        "MONGO_INITDB_ROOT_PASSWORD": "${MONGODB_PASSWORD}"
+      },
+      "resources": {
+        "memory": "256Mi",
+        "storage": "1Gi"
+      }
+    }
+  ],
+  "domains": [
+    {
+      "service": "web",
+      "domain": "${PROJECT_NAME}.zeabur.app"
+    },
+    {
+      "service": "api",
+      "domain": "api-${PROJECT_NAME}.zeabur.app"
+    }
+  ],
+  "environment": {
+    "global": {
+      "TZ": "Asia/Taipei"
+    }
+  }
+}
