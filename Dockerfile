@@ -1,77 +1,63 @@
-# 統一 Dockerfile - 支持多階段構建
-# 用於同時構建前端和後端
+# 簡化的 API Dockerfile - 避免 uploads 目錄問題
+FROM node:18-alpine
 
-# 基礎階段
-FROM node:18-alpine AS base
-WORKDIR /app
-RUN apk add --no-cache git curl
-
-# 依賴安裝階段
-FROM base AS dependencies
-
-# 複製所有 package.json 文件
-COPY package*.json ./
-COPY client/package*.json ./client/
-COPY scripts/ ./scripts/
-
-# 安裝根目錄依賴
-RUN npm ci --only=production
-
-# 安裝 client 依賴
-WORKDIR /app/client
-RUN npm ci --only=production
-
-# 前端構建階段
-FROM dependencies AS frontend-builder
+# 設置工作目錄
 WORKDIR /app
 
-# 複製前端源代碼
-COPY client/ ./client/
-
-# 構建前端
-WORKDIR /app/client
-RUN npm run build
-
-# 驗證構建結果
-RUN ls -la build/ && \
-    test -f build/index.html && \
-    echo "Frontend build completed successfully"
-
-# 後端準備階段
-FROM base AS backend-builder
-WORKDIR /app
-
-# 複製後端源代碼和依賴
-COPY package*.json ./
-COPY server/ ./server/
-COPY scripts/ ./scripts/
-
-# 安裝生產依賴
-RUN npm ci --only=production
-
-# 創建必要目錄
-RUN mkdir -p uploads logs
-
-# 在運行時創建 uploads 目錄（避免複製問題）
-RUN touch uploads/.gitkeep
-
-# 生產階段 - API 服務
-FROM node:18-alpine AS api
-WORKDIR /app
-
-# 安裝運行時依賴
+# 安裝系統依賴
 RUN apk add --no-cache curl
 
-# 複製後端文件
-COPY --from=backend-builder /app/package*.json ./
-COPY --from=backend-builder /app/node_modules ./node_modules
-COPY --from=backend-builder /app/server ./server
-COPY --from=backend-builder /app/scripts ./scripts
-COPY --from=backend-builder /app/uploads ./uploads
-COPY --from=backend-builder /app/logs ./logs
+# 調試：檢查當前目錄結構
+RUN echo "=== 步驟 1: 檢查初始工作目錄 ===" && \
+    pwd && \
+    ls -la
+
+# 複製 package.json 和 package-lock.json
+COPY package*.json ./
+
+# 調試：檢查 package.json 複製結果
+RUN echo "=== 步驟 2: 檢查 package.json 複製結果 ===" && \
+    ls -la package*.json && \
+    echo "package.json 內容預覽:" && \
+    head -10 package.json
+
+# 安裝依賴
+RUN npm ci --only=production && npm cache clean --force
+
+# 調試：檢查依賴安裝結果
+RUN echo "=== 步驟 3: 檢查依賴安裝結果 ===" && \
+    ls -la node_modules/ | head -10 && \
+    echo "node_modules 目錄大小:" && \
+    du -sh node_modules/
+
+# 複製源代碼
+COPY server/ ./server/
+
+# 調試：檢查 server 目錄複製結果
+RUN echo "=== 步驟 4: 檢查 server 目錄複製結果 ===" && \
+    ls -la server/ && \
+    echo "server/index.js 是否存在:" && \
+    test -f server/index.js && echo "✓ 存在" || echo "✗ 不存在"
+
+# 在運行時創建必要的目錄（而不是複製）
+RUN echo "=== 步驟 5: 創建 uploads 和 logs 目錄 ===" && \
+    mkdir -p logs uploads && \
+    touch uploads/.gitkeep && \
+    echo "目錄創建完成，檢查結果:" && \
+    ls -la uploads/ logs/ && \
+    echo "uploads/.gitkeep 是否存在:" && \
+    test -f uploads/.gitkeep && echo "✓ 存在" || echo "✗ 不存在"
+
+# 調試：檢查最終目錄結構
+RUN echo "=== 步驟 6: 檢查最終目錄結構 ===" && \
+    ls -la && \
+    echo "總磁盤使用情況:" && \
+    du -sh * 2>/dev/null || true
 
 # 設置權限
 RUN chown -R node:node /app
+
+# 切換到非 root 用戶
 USER node
 
 # 暴露端口
@@ -81,32 +67,18 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:5000/health || exit 1
 
+# 調試：最終檢查（作為 node 用戶）
+USER node
+RUN echo "=== 步驟 7: 最終檢查（node 用戶權限） ===" && \
+    whoami && \
+    pwd && \
+    ls -la && \
+    echo "檢查關鍵文件權限:" && \
+    ls -la server/index.js uploads/ logs/ && \
+    echo "Node.js 版本:" && \
+    node --version && \
+    echo "npm 版本:" && \
+    npm --version
+
 # 啟動命令
-CMD ["node", "server/index.js"]
-
-# 生產階段 - Web 服務
-FROM nginx:alpine AS web
-WORKDIR /usr/share/nginx/html
-
-# 安裝健康檢查工具
-RUN apk add --no-cache curl
-
-# 複製前端構建結果
-COPY --from=frontend-builder /app/client/build ./
-
-# 複製 nginx 配置
-COPY nginx/default.conf /etc/nginx/conf.d/default.conf
-
-# 創建健康檢查腳本
-RUN echo '#!/bin/sh\ncurl -f http://localhost/ || exit 1' > /usr/local/bin/healthcheck.sh && \
-    chmod +x /usr/local/bin/healthcheck.sh
-
-# 暴露端口
-EXPOSE 80
-
-# 健康檢查
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD /usr/local/bin/healthcheck.sh
-
-# 啟動 nginx
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["sh", "-c", "echo '=== 容器啟動時檢查 ===' && ls -la && echo '=== 啟動應用 ===' && node server/index.js"]
