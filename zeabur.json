@@ -16,13 +16,14 @@
       },
       "environment": {
         "NODE_ENV": "production",
-        "PORT": "5000",
+        "PORT": "8080",
         "MONGODB_URI": "${mongodb.connectionString}",
+        "MONGODB_URL": "${mongodb.connectionString}",
         "JWT_SECRET": "${JWT_SECRET}",
         "GEMINI_API_KEY": "${GEMINI_API_KEY}",
         "PREFERRED_AI_SERVICE": "gemini"
       },
-      "port": 5000,
+      "port": 8080,
       "healthCheck": {
         "path": "/health",
         "port": 5000,
