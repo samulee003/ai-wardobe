@@ -62,7 +62,7 @@
 
 **穩定性與用戶體驗**
 - [ ] 增強錯誤處理：部分失敗時的優雅降級機制
-- [ ] 測試批量上傳功能：多文件上傳的完整流程驗證
+- [x] 測試批量上傳功能：多文件上傳的完整流程驗證（基本手動）
 - [ ] 性能優化：調整並行處理數量限制，避免伺服器過載
 - [ ] 添加用戶體驗回饋機制：批量上傳完成後的滿意度調查
 
@@ -129,6 +129,41 @@
 **測試結果：** 所有代碼通過 linter 檢查，無語法錯誤。前後端服務成功啟動。
 
 **效率提升預期：** 
+### 本輪執行：A3 + B1（可取消與健康檢查）→ 開始 B2/B3
+
+已完成：
+- 後端 A3：在 `server/services/aiService.js` 新增記憶體級健康指標（totalAnalyses/byService/last）與記錄函式 `recordMetrics`、對外 `getMetrics()`；`analyzeClothing` 成功與降級時皆記錄。
+- 健康檢查：`server/routes/health.js` 將 AI 服務區塊擴充，返回 `preferredService/hasGeminiKey/hasOpenAIKey/totalAnalyses/lastAnalysis`。
+- 前端 B1：
+  - `client/src/services/batchUploadService.js` 支援 `AbortController` 透過 `options.signal` 取消上傳，補 `abort`/`timeout`/`error` 事件處理。
+  - `client/src/components/ImageUpload.js` 新增取消控制器、UI 按鈕「⛔ 取消上傳」。
+  - `client/src/components/MobileCameraUpload.js` 新增取消控制器，BottomSheet 行動中顯示「取消上傳」，結束後釋放控制器。
+
+新完成（B2/B3 部分）：
+- 單檔重試：`ImageUpload.js` 失敗項可重新壓縮並改用 `uploadSingle()` 單檔重試。
+- 行動端分段文案：批量流程顯示上傳進度（BottomSheet 保持顯示），取消按鈕支援中止。
+
+自我驗證（成功標準）：
+- 取消上傳時，UI 顯示警示 Toast，進度停止，Promise 拋出「已取消上傳」。
+- 逾時 20s 會以錯誤表現，Toast 顯示「請求超時」。
+- `/health` 端點 JSON 包含 `services.ai` 的 `totalAnalyses` 與 `lastAnalysis` 欄位。
+
+待補測（建議下一步）：
+- 自動化測試：前端以 Jest/RTL 模擬 `AbortController`；後端單元測試 `getMetrics()`。
+- 分析事件上報：將 `aiService/latencyMs/aiService` 上報至 `analyticsService`。
+
+### 代碼結構分離（前後端目錄清晰化）
+
+已完成：
+- 新增 `server/package.json`，獨立 API 依賴與指令。
+- 調整 `Dockerfile.api` 僅安裝 `server/` 依賴並複製 server 原始碼。
+- 精簡 `Dockerfile.web` 僅針對 `client/` 构建。
+- 根 `package.json` 增加 `concurrently`，`npm run dev` 同時啟動前端與後端（`client`/`dev:server`）。
+
+驗證重點：
+- 本機 `npm run dev` 可同時啟動；`http://localhost:3000` 正常代理 API。
+- `docker-compose up -d --build` 能拉起 `api/web/mongodb` 並健康檢查綠燈。
+
 - 新用戶上傳10張衣物的時間預計減少60-70% 
 - 支援最多10張圖片的一次性處理
 - 用戶體驗更流暢，可以在上傳過程中看到每張圖片的處理狀態
@@ -257,3 +292,140 @@ T3 視覺一致性
 ### 對執行者的具體提交物
 - 代碼變更：`aiService.js`（逾時＋回傳欄位）、`batchUploadService.js`（AbortController）、`MobileCameraUpload.js`/`ImageUpload.js`（Bottom Sheet UI）、`analyticsService.js`（事件）
 - 文件：`server/.env.example`、`docs/OPENAI_SETUP.md`
+
+## 9. 行動端設計系統與 UI 全面重構規劃（Planner）
+
+### 9.1 設計原則（高一致性、單手優先、可讀性）
+- 8pt spacing system；主要操作落在拇指區（底部 88px）。
+- 層級清晰：Primary > Secondary > Tertiary；避免同屏太多重點。
+- 動效輕量（150–250ms），用於確認與回饋，不做炫技。
+- 對比充足，通過 WCAG AA（文字對比 ≥ 4.5:1）。
+
+### 9.2 視覺規範（Design Tokens）
+- Colors
+  - primary: #4F46E5（主色）
+  - primaryHover: #4338CA
+  - success: #22C55E
+  - warning: #F59E0B
+  - danger: #EF4444
+  - textPrimary: #1F2937
+  - textSecondary: #6B7280
+  - border: #E5E7EB
+  - surface: #FFFFFF
+  - surfaceAlt: #F8FAFC
+  - backdrop: rgba(15, 23, 42, 0.45)
+- Typography（系統字體）
+  - H1 28/36 semiBold；H2 22/28 semiBold；H3 18/24 semiBold
+  - Body 16/24；Caption 12/16；數字採 Tabular Lining
+- Radius：xs 6, sm 8, md 12, lg 16
+- Shadow：sm 0 1 2 / md 0 6 16 / lg 0 12 32（顏色 #0F172A 15%）
+- Z-Index：nav 20 / sheet 40 / toast 50
+
+落地：新增 `client/src/styles/tokens.js` 與 `client/src/styles/GlobalStyle.js`；在 `App.js` 以 ThemeProvider 套用。
+
+### 9.3 元件庫（優先級）
+1) Button（Primary/Secondary/Ghost/Danger；尺寸 md/lg；載入中狀態）
+2) Card（標準卡＋分割卡；可置入頭圖/統計數字）
+3) BottomSheet（拖曳把手、標題、副標、動作列；可插入進度與詳情）
+4) Progress（百分比＋步驟型；已有 `ProgressIndicator` 作為基礎）
+5) FAB（右下 56px，陰影 lg；可展開二級動作）
+6) Navbar（底部 5 分頁；活躍態主色；Badges）
+7) Toast（成功/警告/錯誤；自動關閉 2.5s）
+8) EmptyState（圖示＋標題＋說明＋主動作）
+
+### 9.4 畫面重構（里程碑）
+M1 不卡死上傳 + 最小改版
+- Home：
+  - 主行動 FAB：拍照上傳；資訊卡留白增大、數字使用 Tabular
+  - 空狀態加 CTA 和引導
+- Upload / MobileCapture：
+  - 用 BottomSheet 呈現「壓縮→上傳→AI 分析→完成」，支援取消/全部取消/重試
+  - 逾時與錯誤文案友善（含 HTTP 狀態與建議）
+- Wardrobe 列表：
+  - Card 密度調整、骨架屏、分頁載入提示
+
+M2 導航與一致性
+- 重做 Navbar、按鈕、表單控件；全站換用 tokens；全局字級/間距統一
+
+M3 細節與動效
+- 空狀態插圖、過場動效、可訪問性（Focus Ring、語意化 aria）、深色模式（可選）
+
+### 9.5 技術落地（檔案與改動）
+- 新增
+  - `client/src/styles/tokens.js`（設計 Token）
+  - `client/src/styles/GlobalStyle.js`（全域 CSS Reset + 字體 + 色彩變數）
+  - `client/src/components/ui/Button.js`、`Card.js`、`BottomSheet.js`、`FAB.js`
+- 修改
+  - `client/src/App.js`：注入 ThemeProvider 與 GlobalStyle；掛載 FAB
+  - `client/src/components/*`：逐步替換為 tokens 與新 UI 元件
+
+### 9.6 成功標準
+- 版面：首頁 LCP < 2.2s；上傳頁交互延遲 < 50ms；核心操作 1 階層可達
+- 可用性：首次上傳成功率 ≥ 90%，中位用時 < 12s；逾時可在 1 點內重試
+- 一致性：全站採用 tokens；色彩/字級/間距不混用臨時值
+
+### 9.7 里程碑 To‑Do（可核對）
+- [ ] 建立 tokens 與 GlobalStyle；接入 ThemeProvider
+- [ ] 建 Button/Card/BottomSheet/FAB 基礎元件
+- [ ] Home：主行動 FAB、卡片密度與留白調整
+- [ ] Upload/MobileCapture：BottomSheet 進度 + 取消/重試
+- [ ] Wardrobe：卡片與骨架屏、分頁提示
+- [ ] 全站切換至 tokens（移除硬編碼顏色/間距）
+
+### 9.8 風險與回滾
+- 舊樣式穿插：以「分頁為單位」切換；元件支援舊 API，避免一次性大面積重構。
+- 裝置相容：在 Android 8–14 實機驗證；若出現崩潰，優先回退動效與陰影層級。
+
+## 10. v0.dev（shadcn）風格微調規劃（Planner）
+
+> 目標：以 v0.dev/shadcn 的系統化原子設計為基底，但「不照抄」；用更溫潤的主色、較大的留白與更清楚層級，適配行動端單手操作與資料密度。
+
+### 10.1 色彩（在 shadcn theme 上覆寫）
+- Primary（藍紫偏暖）：
+  - 600: #5B55E3（主互動）
+  - 700: #4A43D1（按下/強調）
+  - 500: #6E67EF（hover）
+- Secondary（中性藍灰）：#55617A（次互動，文字次要）
+- Success #16A34A / Warning #F59E0B / Danger #EF4444（沿用但降低飽和 5%）
+- Surface：
+  - base #FFFFFF、alt #F7F8FB、card #FFFFFF、backdrop rgba(15,23,42,.45)
+- Text：
+  - 主文 #111827、次文 #6B7280、禁用 #9CA3AF
+
+調整策略：主色較 v0.dev 略偏暖與飽和度降低，與衣物主題更協調；中性的灰藍改善數據視覺疲勞。
+
+### 10.2 版式與節奏
+- 8pt spacing，但將「模組」外距加大（24/32），提升模組辨識度。
+- 字級微調：H1 26/32、H2 20/28、Body 15/22、Caption 12/16（行間距略緊，資訊密度更佳）。
+- 卡片圓角 12、陰影從 md→lg（更飽滿），邊框 1px #E5E7EB。
+- 清單密度：行高 48（圖 + 文 + 右箭頭），骨架採條狀 + 縮圖組合。
+
+### 10.3 元件微調（相對於 v0.dev 預設）
+- Button：主色採 600；hover 500；pressed 700；禁用降低 40% 對比；IconButton 40px 正方。
+- Card：標題（16/24 semi）+ 次文（13/18）+ 行動區（按鈕或次要鏈接）；允許放置統計數字（tabular）
+- Sheet（BottomSheet 行動端）：
+  - 高度 60–80% 視高；拖曳把手 36×4；標題 + 次文 + 內容 + 固定底部操作列（取消/重試/完成）
+- Navbar：底部固定，高度 56；活躍態主色圓角膠囊背景；Badge 10px。
+- FAB：右下 56，陰影 lg；可展開兩個二級動作（相機、相簿）。
+- Toast：成功/警告/錯誤三態，2.5s 自動關閉；可選操作（撤銷）。
+
+### 10.4 佈局圖樣（頁面層）
+- 首頁：Hero 歡迎 + 3 統計卡（網格 1×3）+ 主 CTA 卡（拍照上傳）+ 最近活動；FAB 浮於右下。
+- 上傳/拍照：主視圖 + 佇列（卡片化）+ BottomSheet 進度與操作；進度展示「壓縮→上傳→AI 分析→完成」。
+- 衣櫃：二欄卡片，滾動分頁；空狀態帶教學 CTA。
+
+### 10.5 Tailwind/shadcn 實作要點
+- tailwind.config：擴展 `colors.primary` 為上述階梯；`font-variant-numeric: tabular-nums`；加 `container` 內距（16/24）。
+- shadcn add：只選 Button、Card、Sheet、Tabs、Toast、Skeleton、Navigation/Menu、Badge、Dialog（其餘按需）。
+- 全站以 utility first 為主，styled-components 僅保留在舊頁過渡；新元件只用 shadcn + Radix。
+
+### 10.6 可度量的「微調」成果
+- 文字對比全部通過 AA；卡片模組化辨識度提升（NPS 問卷 > 70% 用戶認為更清楚）。
+- 上傳流程的視覺層級（步驟 + 按鈕）一致，90% 使用者能在 5 秒內找到取消。
+
+### 10.7 待辦（針對 v0.dev 風格微調）
+- [ ] 在 tailwind.config 寫入自訂 primary（600/700/500）、neutral、text/surface tokens
+- [ ] 覆寫 shadcn theme（button/card/sheet/navbar/fab）
+- [ ] Home 版式套用新 tokens：Hero + 統計卡 + 主 CTA + FAB
+- [ ] Upload 套用 BottomSheet + 步驟進度 + 取消/重試
+- [ ] Wardrobe 卡片與清單密度、骨架樣式

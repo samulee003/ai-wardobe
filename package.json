@@ -5,8 +5,9 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "nodemon server/index.js",
+    "dev": "concurrently \"npm:dev:server\" \"npm:client\"",
     "client": "cd client && npm start",
+    "dev:server": "cd server && nodemon index.js",
     "server": "nodemon server/index.js",
     "prebuild": "node scripts/pre-build-check.js",
     "build": "npm run install:client && npm run build:client && npm run build:server",
@@ -48,7 +49,8 @@
     "jsonwebtoken": "^9.0.2",
     "bcryptjs": "^2.4.3",
     "openai": "^4.20.1",
-    "@anthropic-ai/sdk": "^0.9.1"
+    "@anthropic-ai/sdk": "^0.9.1",
+    "concurrently": "^8.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

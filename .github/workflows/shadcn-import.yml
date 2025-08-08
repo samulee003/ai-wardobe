@@ -1,0 +1,45 @@
+name: Import shadcn components (v0.dev)
+
+on:
+  workflow_dispatch:
+    inputs:
+      v0_url:
+        description: v0.dev chat/components URL
+        required: true
+        default: "https://v0.dev/chat/b/b_y9aGoIDesoU?token=REPLACE_ME"
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install client deps (allows lockfile update)
+        run: npm install --legacy-peer-deps
+        working-directory: client
+
+      - name: Initialize shadcn
+        run: npx shadcn@latest init -y
+        working-directory: client
+
+      - name: Add v0.dev components
+        run: |
+          npx shadcn@latest add "${{ github.event.inputs.v0_url }}" -y
+        working-directory: client
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(shadcn): import v0.dev components via workflow"
+          branch: ${{ github.ref_name }}
+
+

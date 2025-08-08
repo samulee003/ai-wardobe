@@ -7,15 +7,8 @@ WORKDIR /app
 # 安裝系統依賴
 RUN apk add --no-cache git
 
-# 複製根目錄 package.json（用於依賴檢查腳本）
-COPY package*.json ./
-COPY scripts/ ./scripts/
-
-# 複製 client package.json
+# 僅複製 client package.json
 COPY client/package*.json ./client/
-
-# 安裝根目錄依賴（包含構建工具）
-RUN npm ci --only=production
 
 # 安裝 client 依賴
 WORKDIR /app/client
@@ -42,7 +35,7 @@ COPY --from=builder /app/client/build /usr/share/nginx/html
 # 複製 nginx 配置
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 
-# 複製 Service Worker
+# 複製 Service Worker（如存在）
 COPY --from=builder /app/client/build/sw.js /usr/share/nginx/html/sw.js 2>/dev/null || echo "No service worker found"
 
 # 創建健康檢查腳本

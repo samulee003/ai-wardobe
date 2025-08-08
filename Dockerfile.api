@@ -9,20 +9,23 @@ RUN apk add --no-cache \
     curl \
     && rm -rf /var/cache/apk/*
 
-# 複製 package.json 和 package-lock.json
-COPY package*.json ./
+# 複製 server 套件檔
+COPY server/package*.json ./server/
 
-# 安裝依賴
+# 安裝 API 依賴
+WORKDIR /app/server
 RUN npm ci --only=production && npm cache clean --force
+WORKDIR /app
 
 # 創建必要的目錄
 RUN mkdir -p logs uploads
 
-# 複製源代碼
+# 複製源代碼（僅 server）
 COPY server/ ./server/
 
-# 複製 uploads 目錄結構（保持 .gitkeep）
-COPY uploads/.gitkeep ./uploads/.gitkeep
+# 複製 uploads 目錄結構（保持 .gitkeep，如無則略過）
+RUN mkdir -p /app/uploads || true
+COPY uploads/.gitkeep ./uploads/.gitkeep 2>/dev/null || true
 
 # 設置權限
 RUN chown -R node:node /app
