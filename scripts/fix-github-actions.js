@@ -166,10 +166,11 @@ jobs:
         npx cap add android || echo "Android platform already exists"
         npx cap sync
         
-    - name: 🔨 Build APK
+    - name: 🔨 Build APK (Debug)
       run: |
-        cd client
-        npx cap build android
+        cd client/android
+        chmod +x ./gradlew
+        ./gradlew assembleDebug
         
     - name: 📤 Upload APK
       uses: actions/upload-artifact@v4
