@@ -27,7 +27,7 @@ Zeabur是一個現代化的雲端部署平台，特別適合您的智能衣櫃AP
 ### 1. 確保代碼已推送到GitHub
 ```bash
 # 運行自動Git腳本
-./autogit.bat
+scripts/windows/autogit.bat
 
 # 或手動推送
 git add .
@@ -45,7 +45,7 @@ git push origin main
 ### 步驟1：運行部署腳本
 ```bash
 # Windows用戶
-deploy-zeabur.bat
+scripts/windows/deploy-zeabur.bat
 
 # Linux/Mac用戶
 ./scripts/deploy-zeabur.sh

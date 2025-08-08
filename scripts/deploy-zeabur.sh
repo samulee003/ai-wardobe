@@ -32,8 +32,8 @@ fi
 echo "✅ 已登錄Zeabur"
 
 # 檢查項目配置
-if [ ! -f "zeabur.json" ]; then
-    echo "❌ 未找到zeabur.json配置文件"
+if [ ! -f "infra/zeabur/zeabur.json" ]; then
+    echo "❌ 未找到 infra/zeabur/zeabur.json 配置文件"
     exit 1
 fi
 

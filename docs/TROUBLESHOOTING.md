@@ -213,7 +213,7 @@ npm run build:client
 npm run build:zeabur
 
 # 檢查 Zeabur 特定配置
-cat zeabur.json
+cat infra/zeabur/zeabur.json
 ```
 
 **環境變數設置**:

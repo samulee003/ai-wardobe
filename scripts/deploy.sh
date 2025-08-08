@@ -75,15 +75,15 @@ deploy_services() {
     
     # 停止現有服務
     echo "  停止現有服務..."
-    docker-compose down --remove-orphans
+    docker compose -f infra/docker/docker-compose.yml down --remove-orphans
     
     # 構建鏡像
     echo "  構建 Docker 鏡像..."
-    docker-compose build --no-cache
+    docker compose -f infra/docker/docker-compose.yml build --no-cache
     
     # 啟動服務
     echo "  啟動服務..."
-    docker-compose up -d
+    docker compose -f infra/docker/docker-compose.yml up -d
     
     echo "✅ 服務部署完成"
 }
@@ -96,7 +96,7 @@ wait_for_services() {
     
     for service in "${services[@]}"; do
         echo "  等待 $service..."
-        timeout 60 bash -c "until docker-compose exec -T ${service%:*} echo 'ready'; do sleep 2; done" || {
+        timeout 60 bash -c "until docker compose -f infra/docker/docker-compose.yml exec -T ${service%:*} echo 'ready'; do sleep 2; done" || {
             echo "❌ 服務 $service 啟動超時"
             exit 1
         }
@@ -149,10 +149,10 @@ show_deployment_info() {
     echo "  Prometheus: http://localhost:9090"
     echo ""
     echo "🔧 管理命令:"
-    echo "  查看日誌: docker-compose logs -f"
-    echo "  停止服務: docker-compose down"
-    echo "  重啟服務: docker-compose restart"
-    echo "  查看狀態: docker-compose ps"
+    echo "  查看日誌: docker compose -f infra/docker/docker-compose.yml logs -f"
+    echo "  停止服務: docker compose -f infra/docker/docker-compose.yml down"
+    echo "  重啟服務: docker compose -f infra/docker/docker-compose.yml restart"
+    echo "  查看狀態: docker compose -f infra/docker/docker-compose.yml ps"
     echo ""
     echo "📊 監控信息:"
     echo "  Grafana 用戶名: admin"
@@ -182,7 +182,7 @@ main() {
     if health_check; then
         show_deployment_info
     else
-        echo "❌ 部署失敗，請檢查日誌: docker-compose logs"
+        echo "❌ 部署失敗，請檢查日誌: docker compose -f infra/docker/docker-compose.yml logs"
         exit 1
     fi
 }

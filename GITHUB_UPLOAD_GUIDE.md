@@ -57,8 +57,8 @@ ai-wardobe/
 ├── 📁 scripts/                   # 部署腳本
 ├── 📁 monitoring/                # 監控配置
 ├── 📄 README.md                  # 項目說明
-├── 📄 docker-compose.yml         # Docker配置
-├── 📄 start.sh                   # 一鍵啟動腳本
+├── 📄 infra/docker/docker-compose.yml   # Docker配置
+├── 📄 scripts/unix/start.sh             # 一鍵啟動腳本
 └── 📄 .env.example              # 環境變數模板
 ```
 

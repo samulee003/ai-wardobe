@@ -649,3 +649,208 @@ Settings（localStorage）
 建議：
 - 可考慮增加更多本地設定（如主題、語言）
 - 未來資料增長時可引入向量索引優化
+
+## 12. 檔案分類與清理規劃（Planner - 檔案結構優化與安全清理）
+
+### 12.1 背景與目標
+- 目前專案頂層聚集多個 Dockerfile、Windows/Unix 腳本與多篇重疊文件，降低可發現性與維護性。
+- 目標：在不破壞現有開發/打包/部署流程的前提下，建立清晰的分類結構，並提出「可安全刪除候選」與「可歸檔（archive）」策略。
+
+成功準則（驗收）
+- 分類後頂層目錄精簡（apps/、infra/、scripts/、docs/ 為主），剩餘頂層檔案 ≤ 12 個。
+- 所有 `package.json` 腳本、CI 與文檔鏈接更新且能通過 build/test。
+- 保留 lockfile 並以 `npm ci` 全面驗證（根與 `client/`）[[memory:5526878]]。
+
+### 12.2 建議的分類結構（不改動程式碼 import 路徑的前提下，小步重組）
+- apps/
+  - client/（原 `client/`，不變）
+  - server/（原 `server/`，不變）
+- infra/
+  - docker/（`Dockerfile*`、`docker-compose.yml`）
+  - nginx/（原 `nginx/`）
+  - monitoring/（原 `monitoring/`）
+  - zeabur/（`zeabur.json` 與部署腳本）
+- scripts/
+  - node/（原 `scripts/*.js` 自動化腳本）
+  - windows/（*.bat）
+  - unix/（*.sh）
+  - ci/（GitHub Actions 相關生成/修復腳本與說明）
+  - legacy/（暫存不常用或個人化腳本，供觀察期）
+- docs/（保持；合併重複主題後精簡）
+- README.md（總覽與導引）
+
+備註：採「歸檔優先」策略，先移動至 `scripts/legacy/` 或 `docs/archive/`，觀察一個版本週期後再決定刪除。
+
+### 12.3 目錄重組草案（不立即執行，供審閱）
+- 將根目錄的 `Dockerfile`、`Dockerfile.api`、`Dockerfile.web`、`Dockerfile.simple` 先移入 `infra/docker/`；保留最常用 1～2 份於 README 標註「推薦」。
+- 將 `docker-compose.yml` → `infra/docker/`，並在頂層保留一個短連結 README 說明使用方式。
+- 將所有 `*.bat` → `scripts/windows/`；所有 `*.sh` → `scripts/unix/`；CI 相關（如 `fix-github-actions.js`）標註於 `scripts/ci/`。
+- 將 `zeabur.json` 與 `deploy-zeabur.*` → `infra/zeabur/`。
+
+### 12.4 可安全刪除候選清單（提案，先標記為 Candidate，不立即刪除）
+標記規則：
+- Safe：幾乎無依賴、用途重疊明顯，可直接刪除（仍建議先進入 `archive/` 觀察 1 版）。
+- Conditional：需確認沒被 CI/腳本/文檔引用後方可移除。
+- Keep：建議保留。
+
+候選（根目錄）
+- autogit.bat（Conditional）：疑似個人化便捷腳本，可能與團隊流程不一致；建議移至 `scripts/legacy/`。
+- quickpush.bat（Conditional）：同上；若 Git 教學中未引用，歸檔後觀察再刪。
+- debug-github-actions.bat / test-github-actions.bat（Conditional）：若 CI 已穩定、且 README 未指向，移至 `scripts/legacy/`。
+- mobile-start.bat（Conditional）：若 `npm run dev` 已同時啟動前後端，且無 Capacitor 專用流程依賴，歸檔。
+- start.sh（Conditional）：若根 `package.json` 已提供對等啟動命令，且此腳本未被引用，歸檔。
+- Dockerfile.simple（Conditional）：若 `infra/docker` 內已有推薦 Dockerfile，且無文檔引用，標記為可移除。
+- README_APK.md（Conditional）：與 `APK_BUILD_GUIDE.md`/`README_APK.md` 內容重疊；建議合併後刪除冗餘一份。
+- GITHUB_UPLOAD_GUIDE.md（Conditional）：若與 `docs/GITHUB_ACTIONS_SETUP.md`/README 重疊，合併後保留單一來源。
+
+候選（docs/）
+- 重疊主題（Conditional）：
+  - `APK_BUILD_GUIDE.md` vs `README_APK.md`：合併為 `docs/APK_BUILD_GUIDE.md`，刪除重複者。
+  - `BUILD_GUIDE.md` 與根 README 的建置段落：保留 `docs/BUILD_GUIDE.md` 作為單一長文，README 只保留入口連結。
+
+候選（scripts/）
+- 若存在早期遺留或未再被 `package.json`/CI 調用的腳本（Conditional）：逐一 `grep` 檢查引用後移至 `scripts/legacy/`，觀察一版再刪。
+
+保留（Keep）
+- 兩個 lockfile：根與 `client/` 的 `package-lock.json`（必留，確保 `npm ci` 重現性）[[memory:5526878]]。
+- `client/public/manifest.json`、`client/public/sw.js`（PWA 必需）。
+- `monitoring/prometheus.yml`、`nginx/nginx.conf`（運維配置）。
+- `Dockerfile.api`、`Dockerfile.web`（若目前部署使用）。
+
+### 12.5 清理與保留準則（決策標準）
+- 原則 1：保留可重現建置必需品（lockfile、Dockerfile（至少 1 份）、Compose、CI 腳本）。
+- 原則 2：單一事實來源（Single Source of Truth）：重疊文檔合併後僅保留一份，其他移除。
+- 原則 3：跨平台腳本收斂：以 Node 腳本與 `npm scripts` 為主；平台專屬（.bat/.sh）集中至對應資料夾。
+- 原則 4：先歸檔、後刪除：移至 `archive/legacy` 觀察至少一個版本週期。
+
+### 12.6 高層任務分解（一步一驗）
+1) 盤點與引用檢查（成功準則：產出清單與引用表）
+   - 列出頂層 *.bat/*.sh、Dockerfile*、重疊文檔。
+   - `grep` 檢查 package.json、CI、docs 的引用鏈。
+2) 建立目錄骨架（成功準則：新目錄就緒、無代碼變更）
+   - 新增 `infra/{docker,nginx,monitoring,zeabur}`、`scripts/{windows,unix,ci,legacy}`。
+3) 歸檔與移動（成功準則：移動後 dev/build/test 均可通過）
+   - 移動 Dockerfile*、*.bat/*.sh、zeabur.json 至新目錄；更新 README 入口。
+4) 文檔合併（成功準則：重疊主題合併完成，lint 連結通過）
+   - 合併 APK/BUILD/GitHub Actions 文檔，保留單一來源；修正內部連結。
+5) 驗證（成功準則：CI 綠燈、npm ci + build/test 全通過）
+   - 根與 `client/` 分別 `npm ci`；`npm run build`；端到端啟動與 APK 構建抽查。
+6) 刪除冗餘（成功準則：刪除 PR 經過 Reviewer 確認，無引用遺失）
+   - 僅在觀察一版後將 `legacy/` 中未被使用者觸發的項移除。
+
+### 12.7 驗證與回滾
+- 建立 `refactor/files-archive/<date>/` 暫存所有被移動/刪除的檔案。
+- 建置核對：`npm ci`（根與 client）→ 前後端 dev 啟動 → Docker 構建 → APK debug 構建抽查。
+- 風險：CI 或文檔鏈接失效；緩解：提交同 PR 內修正、鏈接檢查器、預留 `legacy/`；必要時全量回滾該 PR。
+
+### 12.8 專案狀態看板（本主題）
+- 檔案分類與清理
+  - [x] T1 盤點與引用檢查（頂層腳本/Dockerfile/重疊文檔）— Verified（Pass）
+  - [x] T2 建立目錄骨架（infra/、scripts/ 子目錄）— 已完成（待 Verifier 核可）
+  - [x] T3 移動 Dockerfile 與平台腳本至新目錄並更新 README/文檔引用 — 已完成（待驗證）
+  - [ ] T4 文檔合併（APK/BUILD/Actions）與連結修正
+  - [ ] T5 CI 綠燈與本機 build/test 驗證
+  - [ ] T6 觀察期後刪除 `legacy/` 中未使用項
+
+### 執行者回饋（T2）
+- 已新增目錄：
+  - `infra/docker/`、`infra/nginx/`、`infra/monitoring/`、`infra/zeabur/`
+  - `scripts/windows/`、`scripts/unix/`、`scripts/ci/`、`scripts/legacy/`
+- 皆以 `.gitkeep` 佔位，未移動任何既有文件，無風險。
+- 下一步（T3）：依第 12.9 建議移動對應腳本至新目錄，並同步更新 README/文檔引用。
+
+## Verification Report（T1：檔案盤點與引用檢查）
+
+審核角色：Verifier（內容驗證師）
+
+審核結論：Pass（附 Minor 建議）
+
+檢查範圍：
+- 根目錄與 `scripts/` 下之 `*.bat`、`*.sh`、`Dockerfile*`、`docker-compose.yml`
+- 相關文檔與 README 的引用鏈（搜尋與抽樣檢閱）
+
+要點與結果：
+- 正確性：
+  - `build-debug-apk.bat` 被 `APK_BUILD_GUIDE.md` 直接引用；`deploy-zeabur.bat`、`autogit.bat` 被 `docs/ZEABUR_DEPLOY_GUIDE.md` 引用；`quickpush.bat` 僅在 `setup-git.bat` 中提到。符合 T1 結論。
+  - `docker-compose.yml` 明確引用 `Dockerfile.api` 與 `Dockerfile.web`；此二者必留。符合 T1 結論。
+  - `Dockerfile.simple` 在文件中有提及（README/Git 指南），建議延後處理。符合 T1 建議。
+- 完整性：盤點涵蓋頂層 BAT/SH 與 Docker/Compose 及主要文檔，覆蓋充分。
+- 風險識別：移動檔案後需同步更新文檔與 README 連結，否則導致斷鏈。T1 已提出在 T3/T4 處理，合理。
+
+問題與嚴重度：
+- Minor：`Dockerfile.simple` 的引用來源需在 T4 明確替換或刪除（避免長期雙軌）。
+- Minor：`start.sh` 在 README 中被引用，移動至 `scripts/unix/` 後需更新文件指引與替代命令（如 `npm run dev`）。
+
+建議改進：
+- 在 T2/T3 實作時，同步提交 README 與相關文檔連結修正，避免後續 PR 分散。
+- 針對將移至 `scripts/legacy/` 的項目，於 README 增加一段「歷史腳本位置與替代建議」。
+
+結論與決策：
+- 通過（Pass）。同意進入 T2「建立目錄骨架」。
+
+### 12.9 T1 盤點與引用檢查 — 證據與建議
+
+範圍：根目錄 `*.bat`、`*.sh`、`Dockerfile*`、`docker-compose.yml`、重疊/相關文檔與 README 引用鏈。
+
+BAT（Windows）
+- autogit.bat（Conditional-保留/改路徑）
+  - 引用：`docs/ZEABUR_DEPLOY_GUIDE.md`（示例命令）、`setup-git.bat`（說明文字）。
+  - 建議：移至 `scripts/windows/` 並同步更新文檔路徑。
+- quickpush.bat（Conditional-歸檔）
+  - 引用：僅 `setup-git.bat` 說明文字；無其他實際鏈接。
+  - 建議：移至 `scripts/legacy/` 觀察期。
+- debug-github-actions.bat（Candidate-歸檔）/ test-github-actions.bat（Candidate-歸檔）
+  - 引用：無直接引用。
+  - 建議：移至 `scripts/legacy/` 觀察期。
+- mobile-start.bat（Candidate-歸檔）
+  - 引用：未發現引用；`npm run dev` 已覆蓋常見場景。
+  - 建議：移至 `scripts/legacy/`。
+- build-apk.bat（Candidate-歸檔）
+  - 引用：未發現；`APK_BUILD_GUIDE.md` 僅引用 `build-debug-apk.bat`。
+  - 建議：移至 `scripts/windows/` 或 `legacy/`，優先推薦使用 debug 腳本。
+- build-debug-apk.bat（Keep/改路徑）
+  - 引用：`APK_BUILD_GUIDE.md`。
+  - 建議：移至 `scripts/windows/` 並更新文檔。
+- deploy-zeabur.bat（Keep/改路徑）
+  - 引用：`docs/ZEABUR_DEPLOY_GUIDE.md`。
+  - 建議：移至 `scripts/windows/`，文檔同步更新。
+- fix-ajv-conflict.bat（Candidate-歸檔）
+  - 引用：未發現。
+  - 建議：移至 `scripts/legacy/`。
+- setup-git.bat（Keep/改路徑）
+  - 引用：README_APK.md（間接流程）與自述用途；提供新手初始化。
+  - 建議：移至 `scripts/windows/`，更新 README 路徑。
+
+SH（Unix）
+- start.sh（Keep/改路徑）
+  - 引用：`README.md`、`scripts/git-deploy.sh` 文字內容。
+  - 建議：移至 `scripts/unix/` 並更新 README。
+- scripts/deploy.sh、scripts/deploy-zeabur.sh（Keep）
+  - 引用：自述與部署流程。
+
+Docker 構建檔
+- Dockerfile.api / Dockerfile.web（Keep）
+  - 引用：`docker-compose.yml` 指定。
+- Dockerfile.simple（Conditional-後續調整）
+  - 引用：`scripts/git-deploy.sh`、`README.md`、`GITHUB_UPLOAD_GUIDE.md`。
+  - 建議：先保留並在 T3/T4 更新文檔引用為 `Dockerfile.api/web` 後再評估移除。
+- Dockerfile（根）（Keep）
+  - 引用：未直接命中 compose；可能手動用例。
+  - 建議：保留到 T3 完成整併。
+
+文檔（重疊）
+- README_APK.md vs `APK_BUILD_GUIDE.md`/`docs/APK_DOWNLOAD_GUIDE.md`（Conditional）
+  - 狀態：內容重疊；兩者各自覆蓋「下載」與「構建」。
+  - 建議：在 T4 合併為「下載與構建」單一來源（置於 `docs/`），根目錄 `README_APK.md` 改為連結或移除。
+- GITHUB_UPLOAD_GUIDE.md（Conditional）
+  - 狀態：與一般 Git 使用與 `setup-git.bat` 有重疊。
+  - 建議：合併重要片段到主 README 或 `docs/GITHUB_ACTIONS_SETUP.md` 後關閉本文件。
+
+Compose 與運維
+- `docker-compose.yml` 明確依賴 `Dockerfile.api/web`、`nginx/nginx.conf`、`monitoring/prometheus.yml`（Keep）。
+
+結論（T1）：
+- 可立即移動到 `scripts/windows/`：`build-debug-apk.bat`、`deploy-zeabur.bat`、`setup-git.bat`、`autogit.bat`（並同步更新文檔）。
+- 可移至 `scripts/legacy/`（觀察）：`quickpush.bat`、`debug-github-actions.bat`、`test-github-actions.bat`、`mobile-start.bat`、`fix-ajv-conflict.bat`、`build-apk.bat`。
+- Docker：先建立 `infra/docker/` 骨架，T3 時移動 `Dockerfile*` 與 `docker-compose.yml`，其中 `Dockerfile.simple` 延後處理以免文檔斷鏈。
+- 文檔：T4 進行合併與單一事實來源化。

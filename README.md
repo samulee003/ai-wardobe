@@ -36,13 +36,13 @@ git clone <repository-url>
 cd smart-wardrobe-app
 
 # 一鍵啟動
-./start.sh
+scripts/unix/start.sh
 ```
 
 ### 方法二：Docker部署
 ```bash
-# 使用Docker Compose
-docker-compose up -d
+# 使用Docker Compose（新位置）
+docker compose -f infra/docker/docker-compose.yml up -d
 
 # 或使用部署腳本
 ./scripts/deploy.sh

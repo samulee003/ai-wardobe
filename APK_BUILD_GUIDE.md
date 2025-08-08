@@ -7,7 +7,7 @@
 1. **運行構建腳本**：
    ```bash
    # 構建調試版 APK（無需簽名，可直接安裝）
-   build-debug-apk.bat
+   scripts/windows/build-debug-apk.bat
    ```
 
 2. **安裝 APK**：
