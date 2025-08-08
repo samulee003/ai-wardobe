@@ -169,7 +169,7 @@ jobs:
     - name: 🔨 Build APK
       run: |
         cd client
-        npx cap build android --no-open
+        npx cap build android
         
     - name: 📤 Upload APK
       uses: actions/upload-artifact@v4
