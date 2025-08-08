@@ -429,3 +429,185 @@ M3 細節與動效
 - [ ] Home 版式套用新 tokens：Hero + 統計卡 + 主 CTA + FAB
 - [ ] Upload 套用 BottomSheet + 步驟進度 + 取消/重試
 - [ ] Wardrobe 卡片與清單密度、骨架樣式
+
+## 11. 個人版極簡重構規劃（Planner）
+
+### 背景與目標
+- 甲方暫無明確交期壓力，產品定位改為「個人自用」：極簡、穩定、易備份。
+- 方針：Local-first（離線優先），雲端 API 作為可選增強；界面統一、操作最少步。
+
+### 功能邊界（MVP）
+- 上傳衣物：相簿/拖拽/拍照（可壓縮、可取消、逾時友善）。
+- AI 基礎標籤：類別/顏色/風格 + 置信度；可手動編輯覆寫。
+- 我的衣櫃：卡片列表（縮圖、標籤、最愛）、搜尋/標籤篩選、刪除。
+- 本地資料：IndexedDB 儲存（含 Blob 圖片）；啟動載入；弱網可用。
+- 備份/還原：匯出 JSON + 圖片（zip），匯入可還原全部。
+- 設定：選擇 AI 供應商（openai/gemini/fallback）、切換 Local-only / 雲端同步模式。
+
+### 非目標（先不做）
+- 進階統計/趨勢、社群分享、複雜穿搭推薦、通知系統、A/B 測試與完整 Analytics。
+
+### 資料模型（Local-first）
+ClothingItem（IndexedDB store `clothes`）
+- id: string
+- createdAt: ISO string
+- updatedAt: ISO string
+- imageBlob: Blob（或 File）
+- imageUrl: string（ObjectURL 快取，重啟時以 Blob 重新生成）
+- category: string
+- subCategory: string
+- colors: string[]
+- style: string
+- tags: string[]
+- notes: string
+- favorite: boolean
+- ai: { provider: 'openai'|'gemini'|'fallback', latencyMs: number, confidence: number }
+
+Settings（localStorage）
+- localOnly: boolean（true 時不向雲端同步）
+- aiProvider: string（'openai'|'gemini'|'fallback'）
+
+### 高階任務分解（小步可驗收）
+- T1 Local-first 核心（優先）
+  - [ ] IndexedDB 抽象層（get/add/update/delete/list 搜尋/標籤）
+  - [ ] 上傳流程改接本地儲存（成功後立即顯示於衣櫃）
+  - [ ] 匯出/匯入（zip：meta.json + images/）
+  - [ ] 可靠的 ObjectURL 生命週期管理（卸載/替換時 revoke）
+- T2 UI 一致化（Home/Upload/Wardrobe）
+  - [ ] `ui/Button`/`Card` 應用於 Home 主卡與動作
+  - [ ] Upload/MobileCapture：BottomSheet 進度、取消/重試（保留既有）
+  - [ ] Wardrobe 列表卡視覺統一：密度、標籤、最愛圖示
+- T3 AI 與降級
+  - [ ] 設定頁：AI 供應商選擇/測試按鈕（顯示延遲/成功與否）
+  - [ ] 逾時/失敗自動 fallback；UI 顯示 provider 與延遲
+
+### 11.1 AI 強化（在極簡前提下「很 AI」）
+
+目標：保持 UI 極簡，但智慧度高，操作少。採「Hybrid」：雲端強模型 + 本地可靠降級。
+
+功能集（MVP 內可落地）
+- AI 標籤強化：
+  - 雲端：OpenAI/Gemini 視覺分析產出 類別/顏色/風格/季節/標籤/信心度。
+  - 本地降級：Dominant Colors + 簡單規則（檔名/顏色 → 類別猜測）確保永不失效。
+- 自然語言搜尋：
+  - 使用向量嵌入（OpenAI text-embedding-3-small）將每件衣物（文字標籤+顏色）轉成向量；
+  - 後端儲存向量，提供 `/api/search?q="白色正式襯衫"`；
+  - UI 單一搜尋框（如「藍色夏天上衣」）。
+- 類似度/去重：
+  - 針對新增圖片，與既有衣物向量做 cosine 相似度；超過閾值（如 ≥0.9）提示「可能重複」。
+- 極簡穿搭建議（規則+向量）：
+  - 以顏色和諧規則 + 類別組合法（上衣+下裝+鞋）；
+  - 使用向量找最相近風格或顏色項作補全；
+  - UI 僅顯示 3 組建議 + 一鍵替換某一件。
+- 智慧標籤清理：
+  - 批量將近似標籤合併（如 Tee → T恤），保留原始標籤於備註。
+
+資料流/端點（新增）
+- 後端 `aiService`：
+  - `analyzeClothing` 已有（補：更穩超時/重試）
+  - `embedClothingMeta(text)`：生成向量並回傳；
+  - `similarItems(vector, topK=10)`：找相似衣物；
+  - 於衣物保存時存 `embedding` 欄位（Float32Array/數組）。
+- 路由：
+  - `POST /api/search`：{ q } → 向量檢索 + filter；
+  - `GET /api/clothes/:id/similar`：回傳相似衣物；
+  - `POST /api/tags/normalize`：提供標籤合併建議（可離線規則）。
+
+成功標準（可度量）
+- 標籤準確率：常見類別/顏色 ≥ 90%；使用者修改率 < 25%。
+- 自然語言搜尋：Top-5 命中率 ≥ 80%；平均回應 < 500ms（雲端）。
+- 去重提示：重複圖片檢出召回 ≥ 90%，誤報 ≤ 10%。
+- 穿搭建議：3 組建議內，主觀滿意度 ≥ 70%（自評），平均生成 < 1s。
+
+落地順序（與 T 任務對齊）
+- 與 T1 並行：上傳完成 → 後端生成 `embedding` 保存；
+- 與 T2 並行：搜尋框（Home/Wardrobe 頂部）接 `/api/search`；
+- 與 T3 並行：設定頁可測試 provider，顯示最近 1 次 AI provider 與延遲；
+- 去重提示：在上傳保存前做 quick similar 檢查（閾值可調）。
+
+驗證（Verifier 補充）
+- 用 10 張示例圖：
+  - 測試自然語言搜尋 10 條 query，Top-5 命中 ≥ 8 條；
+  - 上傳 2 張重複圖，能提示「可能重複」；
+  - 穿搭建議 3 組，排除顏色強烈衝突（黑白基礎優先）。
+- T4 備份體驗
+  - [ ] 一鍵匯出（zip 檔名含日期）/ 匯入（拖拽 zip）
+  - [ ] 匯入衝突策略（以時間為準或新增副本）
+- T5 可選雲端同步（延後）
+  - [ ] 雲端切換開關；背景差異比對；手動「上傳全部」
+
+### 成功標準（驗收）
+- 首次加入 10 件衣物（平均 < 2 分鐘），全程可取消/重試無卡死。
+- 重啟後資料仍在；匯出 → 清空 → 匯入 → 完整還原。
+- 離線可檢視、搜尋、刪除；弱網不影響核心操作。
+- UI 一致：按鈕/卡片/底部面板使用統一樣式與間距；首頁 3 主卡導流清晰。
+
+### 驗證流程（Verifier）
+- 功能腳本：
+  1) 新增→標籤→儲存→出現在衣櫃
+  2) 匯出→刪除全部→匯入→完全還原
+  3) 飛航模式檢視與搜尋不受影響
+- 品質檢查：
+  - 物件 URL 釋放、IndexedDB/主執行緒耗時 < 16ms 單次操作
+  - 介面一致性與可讀性（tokens）
+  - AI 逾時/降級 UI 清楚
+
+### 風險與回滾
+- 風險：圖片 Blob 佔用、IndexedDB 版本升級衝突
+- 緩解：圖片壓縮上限、分頁載入；版本升級遷移器（小步）
+
+### 專案狀態看板（個人版）
+- T1 Local-first
+  - [ ] IndexedDB 封裝模組
+  - [ ] 上傳→本地儲存整合
+  - [ ] 匯出/匯入（zip）
+  - [ ] ObjectURL 管理
+- T2 UI 一致化
+  - [ ] Home：Button/Card 套用完成
+  - [ ] Upload：BottomSheet/按鈕一致化
+  - [ ] Wardrobe：卡片統一 + 最愛/標籤
+- T3 AI 與降級
+  - [ ] 設定頁 AI 供應商切換
+  - [ ] 逾時與自動 fallback 驗證
+- T4 備份體驗
+  - [ ] 匯入衝突解決方案
+  - [ ] 匯出/匯入 UX（拖拽/提示）
+
+## Verification Report（本輪：NL 搜尋 + 去重提示 + 穿搭建議替換）
+
+審核角色：Verifier（內容驗證師）
+
+審核結論：Pass（附小幅優化建議，不影響上線）
+
+檢查範圍：
+- 自然語言搜尋（`POST /api/clothes/search`；前端 `Wardrobe` 搜尋框）
+- 上傳完成後的「可能重複」提示（`GET /api/clothes/:id/similar`）
+- 穿搭建議頁的「替換單件」功能（`POST /api/recommendations/replace-item`；前端 `Outfits`）
+
+檢查要點與結果：
+- 功能正確性：
+  - NL 搜尋：有 OpenAI 金鑰時使用向量嵌入與餘弦相似度，無金鑰回退關鍵字查詢；結果排序合理。通過。
+  - 去重提示：上傳成功後以衣物 `embedding` 查詢相似項，達閾值（≥ 0.9）顯示 Toast 提示，不阻塞流程。通過。
+  - 替換單件：替換呼叫後端獲得相似衣物，能更新前端裝扮清單與詳情展示。通過。
+- 可靠性與性能：
+  - 嵌入失效自動回退，避免硬失敗；批量上傳具可取消與逾時策略。通過。
+  - 相似度/搜尋目前在應用層計算；個人用規模下足夠。通過。
+- 安全與資料保護：
+  - 金鑰不在前端暴露；逾時與錯誤訊息未洩敏。通過。
+- UI/一致性：
+  - NL 搜尋輸入與現有樣式一致；提示與 Toast 行為一致。通過。
+
+問題與嚴重度：
+- Minor：Outfits 替換按鈕缺少顯式 loading 態，連點時可能造成重複請求。
+- Minor：Wardrobe NL 搜尋缺少 Enter 直接觸發與 ESC 清空的小快捷行為。
+
+改進建議：
+- 在替換請求期間禁用按鈕並顯示微型 loading。
+- 搜尋框支援 Enter 執行與 ESC 清空；可在結果卡片顯示相似度（可選）。
+
+專案狀態看板（本輪驗證就緒標記）：
+- [x] 自然語言搜尋 Verified（Pass）
+- [x] 上傳去重提示 Verified（Pass）
+- [x] 穿搭建議「替換單件」 Verified（Pass）
+
+備註：若資料量在未來顯著增長，建議導入向量索引（如 FAISS/PGVector/Weaviate）以降低搜尋延遲與 CPU 負載。
