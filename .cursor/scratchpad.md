@@ -602,8 +602,8 @@ Settings（localStorage）
 - Minor：Wardrobe NL 搜尋缺少 Enter 直接觸發與 ESC 清空的小快捷行為。
 
 改進建議：
-- 在替換請求期間禁用按鈕並顯示微型 loading。
-- 搜尋框支援 Enter 執行與 ESC 清空；可在結果卡片顯示相似度（可選）。
+- 在替換請求期間禁用按鈕並顯示微型 loading。（已完成）
+- 搜尋框支援 Enter 執行與 ESC 清空；可在結果卡片顯示相似度（可選）。（已完成前兩項）
 
 專案狀態看板（本輪驗證就緒標記）：
 - [x] 自然語言搜尋 Verified（Pass）
