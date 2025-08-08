@@ -88,6 +88,16 @@
 下一步建議：
 - 推送變更觸發 Actions，觀察依賴安裝與 Android 構建是否順利。
 
+本輪新增修正（ESLint build 阻擋）：
+- `client/src/components/ImageUpload.js`：刪除未使用的 styled-components 宣告。
+- `client/src/components/MobileCameraUpload.js`：移除未使用變數 `isMobile`。
+- `client/src/components/UpdateNotification.js`、`client/src/components/WearTrendChart.js`、`client/src/pages/Wardrobe.js`：對依賴陣列補充註解以避免 exhaustive-deps 誤報。
+- `client/src/pages/Declutter.js`：移除未使用匯入、switch 增加 default 分支。
+- `client/src/services/batchUploadService.js`：避免匿名 default export，導出具名類別與單例。
+
+成功標準（擴充）：
+- React `react-scripts build` 在 CI 中不再因 ESLint 警告被視為錯誤而中止。
+
 需要規劃者確認/支援：
 - 若 Android 構建仍失敗，請允許我在 CI 中加入更詳細的診斷輸出與快取設定（`actions/setup-node` npm cache 以及 Gradle cache）。
 
