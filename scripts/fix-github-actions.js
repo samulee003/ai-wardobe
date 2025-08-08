@@ -43,14 +43,12 @@ function runCommand(command, description) {
 async function fixDependencies() {
   log('yellow', '🚀 開始修復依賴問題...');
   
-  // 1. 清理舊的依賴
-  log('blue', '🧹 清理node_modules和lock文件...');
+  // 1. 清理舊的依賴（保留 lockfile 以利 npm ci 使用）
+  log('blue', '🧹 清理 node_modules（保留 package-lock.json）...');
   
   const pathsToClean = [
     'node_modules',
-    'package-lock.json',
-    'client/node_modules',
-    'client/package-lock.json'
+    'client/node_modules'
   ];
   
   pathsToClean.forEach(pathToClean => {
@@ -135,13 +133,11 @@ jobs:
         node-version: \${{ matrix.node-version }}
         cache: 'npm'
         
-    - name: 🧹 Clean install dependencies
+    - name: 📦 Install root dependencies
       run: |
-        rm -rf node_modules package-lock.json
-        rm -rf client/node_modules client/package-lock.json
         npm ci --legacy-peer-deps
-        
-    - name: 📱 Install client dependencies  
+
+    - name: 📱 Install client dependencies
       run: |
         cd client
         npm ci --legacy-peer-deps
@@ -207,7 +203,7 @@ async function updatePackageScripts() {
     "ci:install:client": "cd client && npm ci --legacy-peer-deps", 
     "ci:build": "npm run ci:install && npm run ci:install:client && npm run build",
     "github:fix": "node scripts/fix-github-actions.js",
-    "deps:clean": "rm -rf node_modules package-lock.json client/node_modules client/package-lock.json",
+    "deps:clean": "rm -rf node_modules client/node_modules",
     "deps:fresh": "npm run deps:clean && npm run ci:install && npm run ci:install:client"
   };
   

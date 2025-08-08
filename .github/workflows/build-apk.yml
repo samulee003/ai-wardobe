@@ -24,12 +24,10 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
         
-    - name: 🧹 Clean install dependencies
+    - name: 📦 Install root dependencies
       run: |
-        rm -rf node_modules package-lock.json
-        rm -rf client/node_modules client/package-lock.json
         npm ci --legacy-peer-deps
-        
+
     - name: 📱 Install client dependencies  
       run: |
         cd client

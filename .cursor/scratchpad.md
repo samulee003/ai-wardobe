@@ -74,6 +74,23 @@
 
 ## 5. 執行者回饋或協助請求 (Executor's Feedback or Assistance Requests)
 
+### 進度更新（CI 構建修復）
+
+已完成的更動：
+- 移除 CI 與腳本中刪除 `package-lock.json` 的動作，改為保留 lockfile 使用 `npm ci`：
+  - 更新 `.github/workflows/build-apk.yml`：分離 root 與 `client/` 的 `npm ci` 安裝步驟，無刪檔。
+  - 更新 `scripts/fix-github-actions.js`：只清理 `node_modules`，不刪 lockfile；同步更新其 workflow 模板與 `deps:clean` 腳本。
+  - 更新根目錄 `package.json` 的 `deps:clean`：不再刪除任何 lockfile。
+
+成功標準（自我驗證）：
+- GitHub Actions 不再出現 `npm ci` 缺少 lockfile 的錯誤並能完成依賴安裝步驟。
+
+下一步建議：
+- 推送變更觸發 Actions，觀察依賴安裝與 Android 構建是否順利。
+
+需要規劃者確認/支援：
+- 若 Android 構建仍失敗，請允許我在 CI 中加入更詳細的診斷輸出與快取設定（`actions/setup-node` npm cache 以及 Gradle cache）。
+
 ### 🎉 任務完成報告 (2024年8月7日)
 
 **執行摘要：** 以五倍速度成功完成所有12個批量上傳功能任務，總共修改了4個核心文件，新增了1個回饋組件。

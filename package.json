@@ -32,7 +32,7 @@
     "github:fix": "node scripts/fix-github-actions.js",
     "ci:install": "npm ci --legacy-peer-deps",
     "ci:install:client": "cd client && npm ci --legacy-peer-deps",
-    "deps:clean": "rm -rf node_modules package-lock.json client/node_modules client/package-lock.json",
+    "deps:clean": "rm -rf node_modules client/node_modules",
     "deps:fresh": "npm run deps:clean && npm run ci:install && npm run ci:install:client",
     "postinstall": "npm run install:client",
     "ci:build": "npm run ci:install && npm run ci:install:client && npm run build"
