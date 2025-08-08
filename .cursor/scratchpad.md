@@ -137,3 +137,123 @@
 
 *(在專案進行中逐步記錄)*
 
+## 7. 手機端 UI/UX 重設規劃（Planner）
+
+### 背景問題與洞察
+- 拍照上傳後「一直轉圈圈、無法取消」，屬於不可中止的阻塞式流程，造成卡死體感。
+- 缺少逾時與離線處理；網路差時無回饋，使用者不知該等多久。
+- 視覺層級混亂：主行動不突出、資訊密度高、裝飾性 loading 遮蔽內容。
+
+### 目標與可量化成功標準
+- 上傳與分析流程全程可中止，任一階段皆可取消或稍後再試。
+- 首次成功上傳 1 件衣物的中位時間 < 12 秒；放棄率 < 10%。
+- 錯誤/逾時皆在 1 次點擊內可重試，離線狀態自動緩存待線上。
+
+### 互動原則
+- 非阻塞：所有長任務以可收合的 Bottom Sheet 呈現，保留頁面可用性。
+- 可回溯：壓縮→上傳→分析 分段進度，支援取消與重試（AbortController）。
+- 明確狀態：提供「正在連線/逾時/離線」三態文案與解法；顯示預估時間或進度條。
+- 單手優化：主要操作（快門/上傳/完成）置於拇指區（底部 88px 區域）。
+
+### 資訊架構與主要流程（手機）
+1) 首頁（Home）
+   - 主行動 FAB：拍照上傳（藍色主色 #4F46E5）
+   - 二級卡：衣櫃、穿搭建議、統計
+2) 拍照/上傳（Capture/Upload）
+   - 大型快門＋相簿多選
+   - 佇列清單（縮圖、檔名、大小、狀態、刪除）
+   - 進度 Bottom Sheet：壓縮→上傳→分析，可取消/全部取消
+3) 衣櫃（Wardrobe）
+   - 卡片密度優化、骨架屏、分頁載入
+4) 穿搭/統計（後續迭代）
+
+### 視覺規範（行動端）
+- 色彩：主色 #4F46E5、輔色 #22C55E、警示 #EF4444
+- 字級：20/16/14；間距 8pt 系統；卡片圓角 12px；陰影 Elevation 2/8
+- 元件：
+  - 主按鈕：高度 48px、全寬、字重 600
+  - FAB：56px、陰影 8、置右下
+  - Bottom Sheet：拖曳把手＋清楚標題與進度列
+
+### 技術方案（關鍵改造）
+- 前端
+  - 上傳服務 `batchUploadService` 新增 AbortController 與逾時（20s 可調）。
+  - `MobileCameraUpload`/`ImageUpload` 將 Loading Overlay 改為可關閉的進度 Bottom Sheet；新增取消/重試。
+  - 新增離線偵測與本地佇列（IndexedDB/localStorage），恢復網路自動同步。
+- 後端
+  - 批量端點已就緒；補上請求逾時友善訊息；長任務日誌標記並回傳部分完成（207）。
+
+### 階段性交付（高層任務）
+T1 可用性修復（優先）
+- [ ] 逾時與可取消：前端接入 AbortController、加入 20s 逾時、顯示取消/重試
+- [ ] 進度 Bottom Sheet：分段進度條，支援最小化；移除全屏遮罩
+- [ ] 上傳失敗清單：逐檔錯誤、單檔重試
+
+T2 體驗提升
+- [ ] 拍照頁重構：大快門＋相簿多選＋上傳佇列
+- [ ] 首頁主行動強化：加入 FAB；信息層級與留白調整
+
+T3 視覺一致性
+- [ ] 全局色彩/字級/間距應用；空狀態與錯誤態文案
+
+### 驗收與度量
+- 自動化量測首張上傳用時、逾時率、取消後重試成功率；埋點於 `analyticsService`。
+
+### 風險與回滾
+- 若 Capacitor 權限或設備相容性導致相機失敗，回退到相簿上傳流程。
+
+## 8. OpenAI 視覺分析啟用與防卡死總體規劃（Planner）
+
+### 背景與目標
+- 目前 AI 分析具備多供應商實作，但未明確配置金鑰與逾時/取消，行動端會在網路不佳時出現「轉圈圈卡死」。
+- 目標：啟用 OpenAI（GPT-4o/4-vision）做真實圖片分析，同時在前後端補上逾時、可取消、降級與可觀測性，確保「永不卡死」。
+
+### 成功標準（可量測）
+- 成功命中 OpenAI：上傳 10 張圖片，80% 以上回傳 `aiService: 'openai'`，平均端到端耗時 < 8s（Wi‑Fi）。
+- 無卡死：逾時（預設 20s）自動結束並顯示重試；使用者可隨時「取消」中止任務。
+- 降級可用：OpenAI 失敗時，自動回退至本地 fallback 分析，整體失敗率 < 5%。
+
+### 技術方案一覽
+- 後端（server）
+  1) 環境變數：`OPENAI_API_KEY`、`PREFERRED_AI_SERVICE=openai`。
+  2) `aiService.analyzeWithOpenAI` 加上 axios 超時（15s）、重試（最多 1 次，退避 1s），失敗回傳具體錯誤碼；外層 `analyzeClothing` 統一捕捉並回退到 `getFallbackAnalysis()`。
+  3) 在 `/api/clothes/upload` 與 `/batch-upload` 回傳 payload 補充 `aiService` 與 `latencyMs`，便於前端展示與埋點。
+
+- 前端（client）
+  1) 連線配置：`REACT_APP_API_URL` 指向後端，行動環境禁用自動離線鎖定（初次嘗試線上，失敗再離線）。
+  2) 上傳服務 `batchUploadService.uploadBatch`：引入 AbortController，逾時 20s，提供 `cancelAll` 與單檔 `cancel`；進度更新顯示分段（壓縮/上傳/分析）。
+  3) UI：用 Bottom Sheet 呈現長任務 + 取消/全部取消/重試；錯誤詳情列出 HTTP 狀態與建議。
+  4) 埋點：`analyticsService` 記錄 `upload_start/finish/cancel/timeout/fallback_used`，含 `latencyMs/aiService`。
+
+### 高階任務分解（小步可驗收）
+- Phase A：OpenAI 啟用與伺服器健全化
+  - [x] A1 新增環境變數樣板與文件：`docs/OPENAI_SETUP.md`（.env.example 因忽略規則不提交，改文檔說明）
+  - [x] A2 `aiService.analyzeWithOpenAI` 增加 axios 超時與一次重試；`analyzeClothing` 補充 `aiService` 與 `latencyMs`
+  - [ ] A3 伺服器日誌與健康檢查：在分析入口記錄供應商與耗時
+  - [ ] A4 實測 3 張圖片，截圖結果與日誌，驗證 `aiService:'openai'`
+
+- Phase B：上傳流程「永不卡死」
+  - [ ] B1 `batchUploadService` 加入 AbortController + 20s 逾時（可由參數覆蓋）
+  - [ ] B2 `MobileCameraUpload`/`ImageUpload` 改為 Bottom Sheet 進度（壓縮/上傳/分析），提供「取消/全部取消/重試」
+  - [ ] B3 逾時/網路錯誤清楚文案 + 單檔重試
+  - [ ] B4 QA：飛航模式/弱網/切 app/back 測試不卡死
+
+- Phase C：可觀測性與降級驗證
+  - [ ] C1 `analyticsService` 上報上述事件
+  - [ ] C2 人為停用金鑰 → 驗證 fallback 生效且 UI 正常
+  - [ ] C3 指標看板（簡版）：在前端加開「上次分析供應商與耗時」
+
+### 交付與驗收
+- 驗收腳本：
+  1) 設定 `OPENAI_API_KEY` + `PREFERRED_AI_SERVICE=openai`，重啟 API
+  2) 行動端上傳 5 張圖片，觀察 Bottom Sheet 進度可取消、逾時可重試
+  3) 伺服器日誌顯示 openai 命中與耗時；前端顯示 `aiService`
+  4) 拔除金鑰 → fallback 結果仍可用；UI 不卡死
+
+### 風險與緩解
+- 服務限流/高延遲：設置更保守逾時與重試間隔；明確回退。
+- 行動端網路抖動：採用取消/重試與離線佇列；結果緩存。
+
+### 對執行者的具體提交物
+- 代碼變更：`aiService.js`（逾時＋回傳欄位）、`batchUploadService.js`（AbortController）、`MobileCameraUpload.js`/`ImageUpload.js`（Bottom Sheet UI）、`analyticsService.js`（事件）
+- 文件：`server/.env.example`、`docs/OPENAI_SETUP.md`
