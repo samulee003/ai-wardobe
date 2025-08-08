@@ -98,6 +98,15 @@
 成功標準（擴充）：
 - React `react-scripts build` 在 CI 中不再因 ESLint 警告被視為錯誤而中止。
 
+### 進度更新（APK CI 全線綠燈）
+
+已驗證：
+- GitHub Actions 已完整通過並成功上傳 `client/android/app/build/outputs/apk/debug/app-debug.apk`。
+- 流程改為使用 Gradle `assembleDebug`，不需 Keystore 簽章即可產出 APK（便於快速測試）。
+
+下一步選項：
+- 若需正式簽章的 Release APK：提供 `KEYSTORE_BASE64`、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD` 等 Secrets，我將新增簽章與 `assembleRelease` 步驟。
+
 需要規劃者確認/支援：
 - 若 Android 構建仍失敗，請允許我在 CI 中加入更詳細的診斷輸出與快取設定（`actions/setup-node` npm cache 以及 Gradle cache）。
 
