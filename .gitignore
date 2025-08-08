@@ -69,7 +69,11 @@ dist
 
 # Gatsby files
 .cache/
-public
+# 重要：不要忽略所有層級的 public 資料夾，否則 CRA 的 client/public 會被忽略
+# 如需忽略根目錄的 public，請使用以下寫法（目前專案不需要）：
+# /public
+# 明確允許追蹤 client/public
+!client/public/
 
 # Storybook build outputs
 .out
