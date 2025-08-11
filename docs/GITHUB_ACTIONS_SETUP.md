@@ -131,15 +131,14 @@ Release APK 會自動發布到 **GitHub Releases**：
 
 ### 修改應用信息
 
-編輯 `client/capacitor.config.ts`：
+編輯 `client/capacitor.config.json`：
 
-```typescript
-const config: CapacitorConfig = {
-  appId: 'com.yourcompany.yourapp',  // 修改包名
-  appName: '您的應用名稱',            // 修改應用名稱
-  webDir: 'build',
-  // ... 其他配置
-};
+```json
+{
+  "appId": "com.yourcompany.yourapp",
+  "appName": "您的應用名稱",
+  "webDir": "build"
+}
 ```
 
 ### 修改構建配置
@@ -177,9 +176,9 @@ env:
 在推送前，您可以本地測試構建：
 
 ```bash
-# 安裝依賴
-npm install
-cd client && npm install
+# 安裝依賴（使用 npm ci 確保與 lockfile 一致）
+npm ci
+cd client && npm ci
 
 # 構建 React 應用
 cd client && npm run build
@@ -230,10 +229,10 @@ node scripts/build-statistics.js summary
 **A:** 這通常是依賴安裝問題：
 
 ```bash
-# 清理並重新安裝依賴
+# 清理並重新安裝依賴（使用 npm ci）
 rm -rf node_modules client/node_modules
-npm install
-cd client && npm install
+npm ci
+cd client && npm ci
 ```
 
 ### Q: APK 簽名失敗

@@ -189,19 +189,18 @@ git push origin v1.0.0-beta.1
 **A:** 本地構建步驟：
 
 ```bash
-# 1. 安裝依賴
-npm install
-cd client && npm install
+# 1. 安裝依賴（使用 npm ci 確保與 lockfile 一致）
+npm ci
+cd client && npm ci
 
 # 2. 構建 React 應用
-npm run build
+cd client && npm run build
 
-# 3. 設置 Capacitor
+# 3. 設置 Capacitor（如需）
 node scripts/setup-capacitor.js
 
 # 4. 構建 APK（需要 Android SDK）
-cd client/android
-./gradlew assembleDebug
+cd client/android && ./gradlew assembleDebug
 ```
 
 ### Q: 如何調試 APK 問題？
@@ -221,15 +220,14 @@ node scripts/build-statistics.js summary
 
 ### Q: 如何自定義應用配置？
 
-**A:** 修改 `client/capacitor.config.ts`：
+**A:** 修改 `client/capacitor.config.json`：
 
-```typescript
-const config: CapacitorConfig = {
-  appId: 'com.yourcompany.yourapp',    // 應用包名
-  appName: '您的應用名稱',              // 應用顯示名稱
-  webDir: 'build',
-  // 其他配置...
-};
+```json
+{
+  "appId": "com.yourcompany.yourapp",
+  "appName": "您的應用名稱",
+  "webDir": "build"
+}
 ```
 
 ## 🌐 網絡和 API

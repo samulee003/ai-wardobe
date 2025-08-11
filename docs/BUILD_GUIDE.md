@@ -33,9 +33,9 @@ npm run diagnose
 # 安裝所有依賴（根目錄和客戶端）
 npm run install:all
 
-# 或者分別安裝
-npm install
-cd client && npm install
+# 或者分別安裝（建議使用 npm ci 以確保 lockfile 一致）
+npm ci
+cd client && npm ci
 ```
 
 ### 3. 驗證依賴

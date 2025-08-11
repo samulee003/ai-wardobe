@@ -748,7 +748,7 @@ Settings（localStorage）
   - [x] T1 盤點與引用檢查（頂層腳本/Dockerfile/重疊文檔）— Verified（Pass）
   - [x] T2 建立目錄骨架（infra/、scripts/ 子目錄）— 已完成（待 Verifier 核可）
   - [x] T3 移動 Dockerfile 與平台腳本至新目錄並更新 README/文檔引用 — 已完成（待驗證）
-  - [ ] T4 文檔合併（APK/BUILD/Actions）與連結修正
+  - [x] T4 文檔合併（APK/BUILD/Actions）與連結修正 — 待 Verifier 核可
   - [ ] T5 CI 綠燈與本機 build/test 驗證
   - [ ] T6 觀察期後刪除 `legacy/` 中未使用項
 
@@ -854,3 +854,88 @@ Compose 與運維
 - 可移至 `scripts/legacy/`（觀察）：`quickpush.bat`、`debug-github-actions.bat`、`test-github-actions.bat`、`mobile-start.bat`、`fix-ajv-conflict.bat`、`build-apk.bat`。
 - Docker：先建立 `infra/docker/` 骨架，T3 時移動 `Dockerfile*` 與 `docker-compose.yml`，其中 `Dockerfile.simple` 延後處理以免文檔斷鏈。
 - 文檔：T4 進行合併與單一事實來源化。
+
+## 13. 手機端 v0/shadcn 風格基礎重設與全站 UI 重構（Planner）
+
+### 背景與原則
+- 目標：在現有技術棧（CRA + Tailwind + styled-components）上，導入「受 v0/shadcn 啟發但非照抄」的移動優先設計語彙，做到品牌一致、層級清楚、交互友好、可維護。
+- 風格要點：
+  - 品牌主色沿用 `#4F46E5`；行動強調（FAB/主 CTA）採粉橘漸層（pink-400 → orange-300）。
+  - 大圓角（12–16px）、輕陰影（md→lg）、AA 對比字色（主文 #111827、次文 #6B7280）。
+  - `MobileShell` 統一頁框；底部導覽 + 中置 FAB；空狀態插畫 + 引導文案。
+  - 工程化：Tailwind utilities 為主，styled-components 只保留過渡期與複雜場景。
+
+### 資訊架構（IA）與主導航
+- 底部導覽 4 區：`/items` 單品、`/outfits` 穿搭、`/wardrobe` 衣櫃、`/settings` 我的。
+- 所有頁面包裹於 `MobileShell`：頂部漸層 Header（可返回/右側文字動作）、中置 FAB（新增/拍照）。
+
+### 設計系統與 Tokens（擴充）
+- 色彩：brand primary 600/700；accent-gradient（pink→orange）僅用於行動重點；surface/surfaceAlt、text、border 延用。
+- 排版：H1 22/28、H2 18/24、Body 14/20、Caption 12/16；數字 `tabular-nums`。
+- 元件基準：圓角 md/12、卡 lg/16、IconButton 40px。
+
+### 元件清單（優先級）
+1) `MobileShell`（已建）：頂部漸層 Header + BottomNav + 中置 FAB（可配置）
+2) `MobileBottomNav`：5 欄樣式基礎、活躍高亮、中心 FAB 懸浮
+3) `CategoryCard`（已建）：標題 + 粉色 Badge + 右側漸層圓鈕
+4) `ItemCard`：縮圖、標籤列、更多操作；骨架屏配套
+5) `EmptyState`：插畫 + 引導文 + 主 CTA（漸層）
+6) `Sheet`/`BottomSheet`：標題/副標/內容/操作列（取消/重試/完成）
+7) `Badge`/`Tag`：粉色/中性徽章；8) `Button` variants：primary/gradient/secondary/ghost/danger
+
+### 畫面規劃（版式）
+- `Items`：Hero → `GradientPanel` 內 `CategoryCard` 清單 → 類別列表/詳情。
+- `Wardrobe`：收合篩選面板、`ItemCard` 列表；空態採插畫 + CTA（拍照/相簿）。
+- `Upload/MobileCapture`：主動作（拍照/相簿/批量）；長任務用 `BottomSheet` 顯示壓縮→上傳→分析（可取消/重試）。
+- `Outfits`：3 組建議卡；卡內提供替換單件操作（禁用/Loading 防多點）。
+- `Settings`：分段卡（同步/備份/AI 供應商/外觀）；二級頁使用 `showBack`。
+
+### 分階段任務與成功標準
+M1 基礎與導航（高優先）
+- [ ] `MobileBottomNav` 與 FAB 配置化；接入 `MobileShell` 至 Items/Wardrobe/Outfits/Settings
+- [ ] 擴充 tokens 與 Tailwind 主題（tabular-nums、container、色板 mapping）
+- [ ] 測試：`MobileShell`/`BottomNav` 渲染與路徑高亮
+- 成功標準：`/items`、`/wardrobe`、`/settings` 在手機尺寸呈新框架；FAB/導航行為正確
+
+M2 列表與空狀態
+- [ ] `ItemCard` 與 `EmptyState`
+- [ ] `Wardrobe` 套用新卡與篩選；空態切換插畫/引導 CTA
+- 成功標準：空態引導率提升（首次操作率 ≥ 60%），UI 一致
+
+M3 上傳與長任務
+- [ ] `BottomSheet` 統一行為：進度條、取消/重試、逾時文案；桌機/手機一致
+- [ ] `Upload/MobileCapture` 改用新 `BottomSheet`，接入 `AbortController`（已具備服務層）
+- 成功標準：不卡死、逾時自動結束；取消後可重試
+
+M4 Outfits 與互動細節
+- [ ] 建議卡 + 替換單件 Loading/防抖；回饋 Toast 一致
+- 成功標準：互動一致；避免重複請求
+
+M5 可用性與效能
+- [ ] 聚焦可見、鍵盤可達、ARIA 標籤；對比度核對
+- [ ] 骨架屏與延遲載入；首頁 LCP ≤ 2.2s；上傳交互延遲 < 50ms
+- 成功標準：Lighthouse（Mobile）A11y ≥ 90、Perf ≥ 85
+
+### 觀測與埋點
+- 上傳開始/完成/取消、空態 CTA 點擊、替換請求次數與錯誤率；上傳/分析延遲與 provider。
+
+### 專案狀態看板（UI 重構主題）
+- M1 基礎與導航
+  - [ ] `MobileBottomNav` 與 FAB 配置化
+  - [ ] Tailwind 主題與 tokens 擴充
+  - [ ] `MobileShell` 接入主要頁（Items/Wardrobe/Outfits/Settings）— 實作完成，待驗證
+- M2 列表與空狀態
+  - [ ] `ItemCard`、`EmptyState`
+  - [ ] `Wardrobe`/`Items` 版式與卡片統一
+- M3 上傳與長任務
+  - [ ] `BottomSheet` 規範化並接入 `Upload/MobileCapture`
+- M4 Outfits 與互動細節
+  - [ ] 建議卡/替換單件 Loading 與防抖
+- M5 可用性與效能
+  - [ ] Lighthouse、a11y、性能與埋點
+
+#### 執行者回饋（本輪）
+- 已於 `Outfits` 行動端加入分類面板與 `AdCard`，並新增 `/outfits/:category` 路由與對應頁 `OutfitCategory`（待驗證）。
+
+### PLAN CONFIDENCE [4/5]
+- 風險小，主要不確定性在細節偏好（插畫/字級/陰影力度）與既有頁過渡；可在 M1 收斂偏好後迅速推進。
