@@ -33,6 +33,15 @@ jobs:
         cd client
         npm ci --legacy-peer-deps
         
+    - name: ⚙️ Configure frontend environment
+      env:
+        FRONTEND_API_URL: ${{ vars.FRONTEND_API_URL }}
+      run: |
+        API_URL=${FRONTEND_API_URL:-https://ai-wardobe.zeabur.app}
+        echo "REACT_APP_API_URL=$API_URL" > client/.env
+        echo "REACT_APP_MODE=cloud" >> client/.env
+        cat client/.env
+        
     - name: 🔧 Setup Java JDK
       uses: actions/setup-java@v4
       with:
