@@ -4,21 +4,12 @@ setlocal enabledelayedexpansion
 REM ASCII-only one-click push script to avoid codepage issues
 REM Usage: autogit-all.bat "<commit message>" [/F]
 
-set MSG=%*
-set FORCE_FLAG=
+set "MSG=%~1"
+set "FORCE_FLAG="
+set "OPT=%~2"
+if /I "%OPT%"=="/F" set FORCE_FLAG=/F
 
-for %%I in (%*) do (
-  if /I "%%~I"=="/F" set FORCE_FLAG=/F
-)
-
-if defined FORCE_FLAG (
-  set MSG=%MSG:/F=%
-  set MSG=%MSG:/f=%
-)
-
-if "%MSG%"=="" (
-  set MSG=chore: one-click sync
-)
+if "%MSG%"=="" set "MSG=chore: one-click sync"
 
 echo [1/6] Ensure remotes
 call :ensure_remote frontend https://github.com/samulee003/ai-wardobe-frontend.git || goto :end_error
@@ -26,7 +17,12 @@ call :ensure_remote backend  https://github.com/samulee003/ai-wardobe--backend.g
 
 echo [2/6] Commit & push to origin/main
 git add -A
-git diff --cached --quiet && echo No staged changes || git commit -m "%MSG%"
+git diff --cached --quiet
+if %ERRORLEVEL%==0 (
+  echo No staged changes
+) else (
+  git commit -m "%MSG%"
+)
 for /f %%B in ('git rev-parse --abbrev-ref HEAD') do set CURBR=%%B
 if "%CURBR%"=="" set CURBR=main
 git push origin %CURBR%:main || goto :end_error
