@@ -102,7 +102,7 @@ echo    ✓ 直接拍照上傳衣物
 echo    ✓ AI自動識別分析
 echo    ✓ 觸摸優化界面
 echo    ✓ PWA離線支持
-echo    ✓ ADHD友好設計
+echo    ✓ 行動端優化設計
 echo.
 echo 📖 詳細指南請查看：docs/MOBILE_GUIDE.md
 echo.

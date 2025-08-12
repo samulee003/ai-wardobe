@@ -53,7 +53,7 @@ class GitHubReleaseManager {
 - 👔 數位衣櫃管理
 - ✨ 智能穿搭推薦
 - 📊 穿著統計分析
-- 🧠 ADHD 友好設計
+ 
 
 ## 🔧 系統要求
 

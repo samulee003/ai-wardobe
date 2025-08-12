@@ -66,7 +66,7 @@ ai-wardobe/
 - ✅ Google Gemini AI衣物識別
 - ✅ 智能衣櫃管理系統
 - ✅ AI穿搭推薦引擎
-- ✅ ADHD友好界面設計
+ 
 - ✅ 數據統計分析
 - ✅ 智能淘汰建議
 - ✅ PWA支持

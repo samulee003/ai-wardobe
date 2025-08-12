@@ -1,6 +1,6 @@
-# 🧠 智能衣櫃管理APP - ADHD友好版
+# 智能衣櫃管理APP
 
-一個專為ADHD用戶設計的智能衣物管理系統，使用Google Gemini AI技術幫助用戶輕鬆整理衣櫃、記錄穿著、獲取專業穿搭建議。
+一個智能衣物管理系統，使用 AI 技術幫助用戶輕鬆整理衣櫃、記錄穿著、獲取專業穿搭建議。
 
 ## ✨ 功能特色
 
@@ -8,50 +8,79 @@
 - 👔 **智能衣櫃管理** - 直觀的衣物瀏覽、篩選和管理
 - ✨ **AI穿搭推薦** - 個性化搭配建議和風格分析
 - 📊 **數據統計分析** - 穿著趨勢、利用率和智能報告
-- 🧠 **ADHD友好設計** - 簡化界面、大按鈕、清晰反饋
+ 
 - 🗑️ **智能淘汰建議** - AI分析幫助整理不需要的衣物
 - 📱 **PWA支持** - 可安裝到桌面，離線功能
 - 🔄 **跨設備同步** - 雲端存儲，隨時隨地訪問
 
-## 🎯 ADHD友好特性
-
-### 認知負荷優化
-- **簡化模式**: 一鍵切換，只顯示核心功能
-- **大按鈕設計**: 48px+按鈕，易於點擊
-- **清晰視覺反饋**: 成功✅、錯誤❌、警告⚠️
-- **減少選擇**: 每頁最多3個主要選項
-
-### 快速操作
-- **一鍵記錄**: 右下角快速記錄穿著
-- **批量操作**: 減少重複點擊
-- **3秒響應**: 所有操作快速反饋
-- **智能提醒**: 適時的操作引導
+## 🎯 主要特性
+- 快速上傳與 AI 標籤
+- 衣櫃管理、搜尋與統計
+- AI 穿搭推薦與單件替換
 
 ## 🚀 快速開始
 
-### 方法一：一鍵啟動（推薦）
+### 方法一：本機開發（推薦）
 ```bash
-# 克隆項目
-git clone <repository-url>
-cd smart-wardrobe-app
+# 取得原始碼
+git clone https://github.com/samulee003/ai-wardobe.git
+cd ai-wardobe
 
-# 一鍵啟動
-scripts/unix/start.sh
+# 安裝依賴（保留 lockfile）
+npm ci
+
+# 啟動前端與後端（同時）
+npm run dev
 ```
 
-### 方法二：Docker部署
+提示：預設會於前端埠 3000 啟動 React、後端埠 5000 啟動 API。
+
+Windows 注意事項：若 PowerShell 出現執行原則阻擋 npm 的錯誤，可臨時改用下列方式執行命令：
+```powershell
+cmd /c "npm ci"
+cmd /c "npm run dev"
+```
+
+### 方法二：Docker（開發/部署）
 ```bash
-# 使用Docker Compose（新位置）
+# 使用 Docker Compose（位於 infra/docker/）
 docker compose -f infra/docker/docker-compose.yml up -d
 
 # 或使用部署腳本
 ./scripts/deploy.sh
 ```
 
-### 訪問應用
-- 🌐 **前端**: http://localhost:3000
-- 🔧 **API**: http://localhost:5000
-- 🏥 **健康檢查**: http://localhost:5000/health
+### 訪問應用（單體模式）
+- 🌐 前端: http://localhost:3000
+- 🔧 API: http://localhost:5000
+- 🏥 健康檢查: http://localhost:5000/health
+
+---
+
+## 獨立專案拆分（前後端分離部署）
+
+你可以將本倉庫拆成兩個獨立專案：
+
+1) 前端 `ai-wardobe-frontend/`（React + Capacitor）
+- 目錄：現有 `client/` 的內容直接成為新倉庫根目錄
+- 環境變數：新增 `.env`，設定
+  - `REACT_APP_API_URL=https://your-api.onzeabur.app`
+- 開發/打包：
+  - `npm ci && npm start`
+  - `npm run build`（Web）
+  - `npx cap sync && npx cap build android`（APK）
+
+2) 後端 `ai-wardobe-backend/`（Node + Express）
+- 目錄：現有 `server/` 的內容直接成為新倉庫根目錄
+- 需要的檔案：保留 `server/` 內 `routes/ models/ services/ index.js`，同層新增專屬 `package.json`（已存在）
+- 環境變數（Zeabur/Render）：
+  - `MONGODB_URI=...`（若走雲端）
+  - `KIMI_API_KEY=...`（若用 Kimi）
+  - `PREFERRED_AI_SERVICE=kimi|openai|gemini`
+  - `PORT=5000`（或平台提供的環境變數）
+- 啟動指令：`npm ci && npm run start`（或使用平台預設 Node 入口）
+
+前端將只呼叫 `REACT_APP_API_URL` 指向的雲端 API；後端在 Zeabur 上運行，金鑰只保存在後端。
 
 ## ⚙️ 環境配置
 
@@ -63,11 +92,14 @@ MONGODB_URI=mongodb://localhost:27017/smart-wardrobe
 # JWT密鑰
 JWT_SECRET=your-super-secret-jwt-key-here
 
-# Google Gemini API (主要AI服務)
+# AI 服務（擇一或多個）
+# Google Gemini API
 GEMINI_API_KEY=your-gemini-api-key-here
+# Moonshot Kimi API
+KIMI_API_KEY=your-kimi-api-key-here
 
-# 偏好的AI服務
-PREFERRED_AI_SERVICE=gemini
+# 偏好的AI服務（gemini | kimi | openai | anthropic | google-vision）
+PREFERRED_AI_SERVICE=kimi
 ```
 
 ## 📖 使用指南
@@ -83,10 +115,7 @@ PREFERRED_AI_SERVICE=gemini
 5. **記錄穿著** - 追蹤使用情況
 6. **查看統計** - 分析穿著習慣
 
-### 3. ADHD模式
-- 點擊右上角 **🧠 ADHD模式** 開關
-- 界面自動簡化，只顯示核心功能
-- 使用更大的按鈕和清晰的標籤
+ 
 
 詳細使用說明請查看 [用戶指南](docs/USER_GUIDE.md)
 
@@ -125,12 +154,18 @@ npm run build
 ```
 
 ### API端點
+- `GET /health` - 健康檢查（含 AI 服務狀態）
 - `POST /api/auth/register` - 用戶註冊
 - `POST /api/auth/login` - 用戶登錄
 - `GET /api/clothes` - 獲取衣物列表
 - `POST /api/clothes/upload` - 上傳衣物圖片
+- `POST /api/clothes/batch-upload` - 批量上傳衣物圖片（如已啟用）
 - `GET /api/recommendations` - 獲取穿搭推薦
-- `GET /api/clothes/statistics` - 獲取衣櫃統計
+- `POST /api/recommendations/replace-item` - 替換穿搭中的單件
+- `POST /api/clothes/search` - 自然語言搜尋（具向量/關鍵字回退）
+- `GET /api/clothes/:id/similar` - 查詢相似衣物
+- `GET /api/settings` / `POST /api/settings` - 系統設定（如 AI 供應商）
+- `GET /api/ai-test` - 測試 AI 供應商可用性
 
 ## 🤝 貢獻指南
 
@@ -155,11 +190,11 @@ npm run build
 特別感謝：
 - **Google Gemini AI** - 提供強大的AI識別服務
 - **React社群** - 優秀的前端開發框架
-- **ADHD社群** - 寶貴的用戶反饋和建議
+ 
 - **所有貢獻者** - 讓這個項目變得更好
 
 ---
 
 ## 🌟 如果這個項目對您有幫助，請給我們一個Star！
 
-**讓我們一起打造更好的ADHD友好應用！** 🧠✨
+**讓我們一起打造更好的智能衣櫃應用！** ✨

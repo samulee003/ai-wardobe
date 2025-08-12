@@ -1,7 +1,7 @@
 {
   "name": "smart-wardrobe-app",
   "version": "1.0.0",
-  "description": "智能衣櫃管理APP - 幫助ADHD用戶整理衣物和穿搭建議",
+  "description": "智能衣櫃管理APP - AI衣物管理系統",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
@@ -59,7 +59,6 @@
     "wardrobe",
     "fashion",
     "ai",
-    "adhd",
     "organization"
   ],
   "author": "Smart Wardrobe Team",

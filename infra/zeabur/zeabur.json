@@ -1,6 +1,6 @@
 {
   "name": "smart-wardrobe-app",
-  "description": "智能衣櫃管理APP - 專為ADHD用戶設計的AI衣物管理系統",
+  "description": "智能衣櫃管理APP - AI衣物管理系統",
   "version": "1.0.0",
   "services": [
     {
@@ -21,7 +21,8 @@
         "MONGODB_URL": "${mongodb.connectionString}",
         "JWT_SECRET": "${JWT_SECRET}",
         "GEMINI_API_KEY": "${GEMINI_API_KEY}",
-        "PREFERRED_AI_SERVICE": "gemini"
+        "KIMI_API_KEY": "${KIMI_API_KEY}",
+        "PREFERRED_AI_SERVICE": "kimi"
       },
       "port": 8080,
       "healthCheck": {

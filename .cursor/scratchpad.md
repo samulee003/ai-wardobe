@@ -939,3 +939,172 @@ M5 可用性與效能
 
 ### PLAN CONFIDENCE [4/5]
 - 風險小，主要不確定性在細節偏好（插畫/字級/陰影力度）與既有頁過渡；可在 M1 收斂偏好後迅速推進。
+
+## Verification Report（本輪：同步遠端最新版）
+
+審核角色：Verifier（內容驗證師）
+
+審核結論：[PASS]
+
+動作摘要：
+- 建立備份分支：`backup/local-before-reset`
+- 同步遠端：`git fetch --all --prune --tags`
+- 覆蓋為 GitHub 最新：`git reset --hard origin/main` → HEAD = `fcfb65e`（訊息：new design）
+- 清理未追蹤：`git clean -fdx`（移除 `node_modules/` 與 `client/build/`）
+- 安裝依賴（保留 lockfile，遵循 `npm ci` 流程）[[memory:5526878]]：
+  - 根目錄：透過 `cmd` 執行 `npm ci`
+  - `client/`：隨 postinstall 觸發 `npm install`
+- 建置驗證：`npm run build` 成功，前端產物輸出完成（含若干 ESLint 警告，非致命）。
+
+安全稽核：
+- 根目錄 `npm audit`：3 高風險（由 `multer`/`busboy`/`dicer` 鏈引），`--force` 為破壞性升級，暫不自動處理。
+- `client/` `npm audit`：6 高 3 中（多由 `react-scripts` 舊鏈），`--force` 將導致重大破壞，建議改採受控升級。
+
+建議後續：
+- 伺服端：規劃平滑升級至 `multer@2.x` 並驗證上傳路由兼容性。
+- 前端：避免 `--force`，評估升級 `react-scripts` 或逐步遷移至 Vite。
+
+專案狀態看板：
+- [x] 代碼庫已與 `origin/main` 完全同步
+- [x] 依賴安裝與建置完成，可進行後續開發/驗證
+
+## 14. 專案現況快照與本地測試環境啟動（2025-08-11）
+
+環境與版本
+- Node.js: v22.17.1
+- npm: 10.9.2（Windows PowerShell 執行原則可能阻擋 `npm.ps1`，可改用 `cmd /c` 執行）
+
+Git 狀態
+- HEAD: `fcfb65e new design`（`main` 同步 `origin/main`）
+- 最近提交：
+  - `fcfb65e` new design
+  - `cab7f45` refactor(files): reorganize infra/docker and scripts; update docs and commands
+  - `cd354cf` feat: complete local-first architecture with export/import, IndexedDB storage, AI provider settings, and enhanced Wardrobe UI（備份分支）
+
+目錄結構重點
+- `infra/docker/`：包含 `docker-compose.yml` 與 `Dockerfile{,.api,.web,.simple}`
+- `scripts/`：分 `unix/`、`windows/`、`legacy/`；主要腳本集中於根 `scripts/`
+- 前端 `client/`：React 18 + CRA；`build/` 產物已生成；`styles/tokens.js` 與 `GlobalStyle.js` 就緒
+- 後端 `server/`：Express + Mongoose；`routes/` 含 `health`、`ai-test`、`settings` 等
+
+開發環境配置
+- 前端：預設 `http://localhost:3000`（React Dev Server）
+- 後端：預設 `http://localhost:5000`（Express API）
+- 代理：前端透過 `client/package.json` 中的 `"proxy": "http://localhost:5000"` 代理 API 請求
+- 啟動命令：`npm run dev` 使用 `concurrently` 同時啟動前後端
+
+依賴與安全
+- 根：`multer@1.4.4-lts.1`（安全修正版），但 `npm audit` 仍出現由 `busboy/dicer` 鏈引的高風險建議；不建議 `--force`。
+- client：`react-scripts@5.0.1`；`npm audit` 顯示由 `svgo/webpack-dev-server` 鏈引的高/中風險；不建議 `--force`。
+
+運行與構建
+- 開發：`npm run dev` 同時啟動 client 與 server
+- 構建：`npm run build` 已通過（前端有幾則 ESLint 警告）
+
+### 前端本地測試環境啟動指引（連接 Zeabur 後端）
+
+**重要**：後端已部署在 Zeabur，僅需啟動前端進行測試
+
+1. **環境檢查**：確保 Node.js v22.17.1 與 npm 已安裝
+2. **配置 API 端點**：設定環境變數指向 Zeabur 後端
+3. **啟動前端**：執行 `cd client && npm start` 啟動 React 開發服務
+4. **存取網址**：
+   - 前端界面：`http://localhost:3000`
+   - Zeabur 後端 API：配置中的 API_URL
+5. **功能測試重點**：
+   - Local-first 架構（IndexedDB 儲存）
+   - 衣物上傳與 AI 分析（連接 Zeabur 後端）
+   - 自然語言搜尋
+   - 穿搭建議與替換功能
+   - 匯出/匯入功能
+
+**Zeabur 部署資訊**：
+- API 服務：運行在 port 8080，使用 KIMI (Moonshot) AI
+- AI 模型：`moonshot-v1-8k-vision-preview`（視覺分析）
+- MongoDB：版本 6.0，專用實例  
+- 健康檢查：`/health` 端點，30 秒超時
+- 環境變數：需設定 `KIMI_API_KEY` 與 `PREFERRED_AI_SERVICE=kimi`
+
+### 故障排除
+- 若埠被佔用：檢查其他服務或修改 `server/index.js` 中的埠設定
+- 若前端無法代理：確認 `client/package.json` 中的 proxy 設定正確
+- 若依賴問題：執行 `npm run deps:fresh` 重新安裝所有依賴
+
+建議下一步
+- 規劃 `multer 2.x` 平滑升級並驗證上傳流程
+- 評估 CRA → Vite 遷移或控管式升級 `react-scripts`
+
+## 15. Git 分倉與推送策略（固定流程）
+
+目標：前端與後端分別推送到獨立倉庫，保持單一來源清晰，便於部署與協作。
+
+### 遠端設定
+- frontend → `https://github.com/samulee003/ai-wardobe-frontend.git`
+- backend  → `https://github.com/samulee003/ai-wardobe--backend.git`
+- origin   → 單倉聚合（保留）
+
+### 子樹推送流程
+- 前端（client 子目錄）
+  - 建立/更新分支：`git subtree split --prefix client -b frontend-split`
+  - 推送至前端倉庫：`git push -f frontend frontend-split:main`
+
+- 後端（server 子目錄）
+  - 建立/更新分支：`git subtree split --prefix server -b backend-split`
+  - 推送至後端倉庫：`git push -f backend backend-split:main`
+
+說明：使用 subtree 可保留各自完整歷史且不需在子目錄建立獨立 Git；使用 `-f` 為覆蓋式同步，避免歷史分歧。
+
+### 操作約定
+- 每次修改 `client/` 或 `server/` 完成後，依序執行對應子樹推送。
+- 不使用 `--force` 對 `origin`；僅對子倉 `frontend/backend` 的 `main` 使用覆蓋式同步。
+- 長期可改以 `git subtree push --prefix client frontend main`（效果同上，無需臨時分支）。
+
+## Verification Report（本輪：移除 ADHD/簡化/標準模式）
+
+審核角色：Verifier（內容驗證師）
+
+審核結論：[PASS]
+
+動作摘要：
+- 前端：移除 `ADHDModeToggle` 與所有 `adhdMode` 相關條件樣式與文案；清理 Login/測試/樣式與 SEO 描述；統一錯誤訊息路徑。
+- 後端：模型與路由移除 ADHD 偏好欄位與邏輯；AI 相關 prompt 移除 ADHD 特化描述。
+- 文檔/腳本：README、docs、部署與腳本文案同步移除 ADHD 敘述；`package.json` 說明與關鍵字更新。
+
+驗證：
+- `npm run build` 成功；無因移除導致的錯誤。前端僅存少量與本次變更無關的 ESLint 警告。
+- 全文搜尋無功能性殘留引用；僅保留歷史語境於部分非關鍵檔已清理。
+
+狀態看板：
+- [x] 前端/後端/文檔已全面移除 ADHD/模式（完成）
+
+## Planner — 下一步行動 (針對「修復功能實現問題」)
+
+說明：基於先前驗證報告與執行紀錄，下一步以小步快驗為原則，優先解決使用者回報的「功能實作問題」。此區列出具體可執行任務、驗收標準與時間順序，供執行者依序實作並交由驗證者審核。
+
+- **任務 A: 回溯並穩定現有失敗案例**
+  - **描述**：收集近期報錯/失敗的具體案例（console、CI log、用戶回報），針對最常見的 3 個錯誤進行修復。
+  - **成功標準**：CI 中能重現並修復至少 3 個錯誤；本地重現腳本能復現問題並通過修復後測試。
+
+- **任務 B: 上傳流程不可中止 / 卡死 修復驗證**
+  - **描述**：檢查 `batchUploadService`、`ImageUpload.js`、`MobileCameraUpload.js` 的取消/逾時邏輯是否一致；補上缺漏的 AbortController 處理與 UI 取消回饋。
+  - **成功標準**：手動在弱網/飛航模式下測試，驗證 cancel/timeout 行為符合規範（顯示 Toast、停止進度、Promise 拋出已取消）；新增 Jest/RTL 測試模擬 AbortController 行為。
+
+- **任務 C: AI 分析逾時與回退流程強化**
+  - **描述**：在 `server/services/aiService.js` 增加明確超時、重試與 fallback 路徑，並在回應中返回 `aiService` 與 `latencyMs`；前端根據該欄位顯示供應商與延遲。
+  - **成功標準**：模擬 OpenAI/無金鑰情況皆有可重現的回退；後端單元測試覆蓋 `analyzeClothing` 的成功/失敗/降級分支。
+
+- **任務 D: 自動化回歸測試補齊**
+  - **描述**：新增或補強針對上傳、AI 分析、匯出/匯入 的自動化測試（server 與 client）；把模擬網路條件與 Abort 行為加入測試矩陣。
+  - **成功標準**：CI pipeline 新增至少 5 個關鍵回歸測試並通過；測試在本地與 CI 皆穩定通過。
+
+- **任務 E: 驗證與觀測（Verifier checklist）**
+  - **描述**：每項任務完成後提交驗證請求，Verifier 需在 `Verification Report` 中記錄 `[PASS]/[FAIL]`、檢查範圍與複測步驟。
+  - **成功標準**：所有任務在 Verifier 標記 `[PASS]` 前不被標記為最終完成；若任務連續兩次 `[FAIL]`，自動升級給 Planner 重新拆解。
+
+時間順序建議：A → B → C → D → E（每項任務以最小可交付物為單位，單次迭代不超過 3 天）。
+
+PLAN CONFIDENCE [4/5]
+- 主要不確定性：部分錯誤可能需在真實弱網或特定設備上才可穩定重現；若重現困難，會同步請求使用者或 QA 提供錄影/log。 
+
+下一步（我將以 Executor 身份執行）：
+- 我將先執行 **任務 A**：收集失敗案例並建立重現腳本；完成後更新 `Project Status Board` 並請求驗證。
